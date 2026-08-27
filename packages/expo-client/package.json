@@ -25,7 +25,7 @@
     "@better-auth/expo": "1.6.23",
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "@cloudflare-mobile-sync/client-core": "workspace:*",
-    "better-auth": "1.6.23",
+    "better-auth": "1.7.1",
     "expo-constants": "57.0.12",
     "expo-linking": "57.0.6",
     "expo-network": "57.0.1",
