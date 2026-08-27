@@ -1,0 +1,17 @@
+# Worker-only local configuration. Copy this file to `.dev.vars` in this
+# directory. Never copy these values into a consuming app.
+ALLOWED_COLLECTIONS=notes
+BETTER_AUTH_URL=http://localhost:8787
+TRUSTED_ORIGINS=com.example.cloudflaremobilesync://
+
+# Server-only secrets. Replace the placeholders locally; `.dev.vars` is ignored.
+BETTER_AUTH_SECRET=replace-with-32-or-more-random-bytes
+# Use the same value at version 1 on a new install. Put the newest version first when rotating.
+BETTER_AUTH_SECRETS=1:replace-with-the-same-random-secret
+
+# Required only when REQUEST_PORTAL_ENABLED=true. Generate independent secrets.
+REQUEST_PORTAL_TURNSTILE_SECRET_KEY=replace-with-turnstile-secret
+REQUEST_SUBJECT_HMAC_KEY=replace-with-32-or-more-random-bytes
+
+# GOOGLE_WEB_CLIENT_ID and NATIVE_APPLICATION_ID are public deployment metadata.
+# Keep them in Wrangler vars rather than duplicating them in this secret file.

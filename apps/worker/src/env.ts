@@ -1,0 +1,39 @@
+export interface Env {
+  DB: D1Database;
+  REQUEST_DB?: D1Database;
+  ALLOWED_COLLECTIONS: string;
+  RETAINED_TOMBSTONE_TARGETS?: string;
+  BETTER_AUTH_URL: string;
+  BETTER_AUTH_SECRET: string;
+  BETTER_AUTH_SECRETS?: string;
+  TRUSTED_ORIGINS: string;
+  GOOGLE_WEB_CLIENT_ID: string;
+  NATIVE_APPLICATION_ID: string;
+  AUTH_RATE_LIMITER: RateLimit;
+  SYNC_RATE_LIMITER: RateLimit;
+  REQUEST_PORTAL_ENABLED?: string;
+  REQUEST_PORTAL_ORIGIN?: string;
+  REQUEST_PORTAL_ORGANIZATION_NAME?: string;
+  REQUEST_PORTAL_PRODUCT_NAME?: string;
+  REQUEST_PORTAL_PUBLIC_SCOPE?: string;
+  REQUEST_PORTAL_ACCOUNT_SCOPE?: string;
+  REQUEST_PORTAL_NOTICE_VERSION?: string;
+  REQUEST_EVIDENCE_POLICY_VERSION?: string;
+  REQUEST_PORTAL_PENDING_MAX_AGE_DAYS?: string;
+  REQUEST_PORTAL_IDENTITY_ISSUE_ENABLED?: string;
+  REQUEST_PORTAL_ACCOUNT_DELETION_ENABLED?: string;
+  REQUEST_DB_GENERATION?: string;
+  REQUEST_PORTAL_TURNSTILE_SITE_KEY?: string;
+  REQUEST_PORTAL_TURNSTILE_SECRET_KEY?: string;
+  REQUEST_PORTAL_ACCESS_TEAM_DOMAIN?: string;
+  REQUEST_PORTAL_ACCESS_AUDIENCE?: string;
+  REQUEST_PORTAL_ADMIN_EMAILS?: string;
+  REQUEST_SUBJECT_HMAC_KEY?: string;
+}
+
+export function commaSeparated(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}

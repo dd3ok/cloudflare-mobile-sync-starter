@@ -1,0 +1,31 @@
+{
+  "name": "cloudflare-mobile-sync",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "description": "Self-hosted authentication and incremental sync for mobile applications",
+  "packageManager": "pnpm@11.9.0",
+  "engines": {
+    "node": ">=22.13 <25"
+  },
+  "scripts": {
+    "build": "pnpm build:packages && pnpm --filter @cloudflare-mobile-sync/worker build && pnpm --filter @cloudflare-mobile-sync/expo-app build",
+    "build:packages": "pnpm --filter @cloudflare-mobile-sync/api-contract build && pnpm --filter @cloudflare-mobile-sync/client-core build && pnpm --filter @cloudflare-mobile-sync/expo-client build",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm security:secrets",
+    "format": "biome format --write .",
+    "lint": "biome check .",
+    "security:audit": "node scripts/security-audit.mjs",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "test": "pnpm run test:preflight && pnpm -r --if-present test",
+    "test:preflight": "node --test scripts/preflight-worker-config.test.mjs scripts/secret-patterns.test.mjs",
+    "typecheck": "pnpm build:packages && pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.4",
+    "@types/node": "24.13.2",
+    "ajv": "8.20.0",
+    "jsonc-parser": "3.3.1",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}

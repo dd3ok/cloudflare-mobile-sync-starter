@@ -1,0 +1,45 @@
+{
+  "name": "@cloudflare-mobile-sync/expo-client",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prebuild": "node ../../scripts/clean-dist.mjs",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run --dir src",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@better-auth/expo": "1.6.23",
+    "@cloudflare-mobile-sync/api-contract": "workspace:*",
+    "@cloudflare-mobile-sync/client-core": "workspace:*",
+    "better-auth": "1.6.23",
+    "expo-constants": "57.0.12",
+    "expo-linking": "57.0.6",
+    "expo-network": "57.0.1",
+    "expo-secure-store": "57.0.1"
+  },
+  "peerDependencies": {
+    "expo": "^57.0.0",
+    "react": "^19.2.0",
+    "react-native": "^0.86.0"
+  },
+  "devDependencies": {
+    "expo": "^57.0.14",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "^0.86.2"
+  }
+}

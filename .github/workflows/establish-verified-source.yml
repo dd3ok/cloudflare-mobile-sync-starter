@@ -1,0 +1,56 @@
+name: Establish verified source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  establish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create a GitHub-verified bot commit and remove this bootstrap workflow
+        env:
+          EXPECTED_HEAD: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          node <<'NODE'
+          const query = `
+            mutation($input: CreateCommitOnBranchInput!) {
+              createCommitOnBranch(input: $input) {
+                commit { oid url }
+              }
+            }
+          `;
+          const input = {
+            branch: {
+              repositoryNameWithOwner: process.env.REPOSITORY,
+              branchName: "main",
+            },
+            message: { headline: "chore: establish verified public source" },
+            expectedHeadOid: process.env.EXPECTED_HEAD,
+            fileChanges: {
+              deletions: [
+                { path: ".github/workflows/establish-verified-source.yml" },
+              ],
+            },
+          };
+          const response = await fetch("https://api.github.com/graphql", {
+            method: "POST",
+            headers: {
+              Accept: "application/vnd.github+json",
+              Authorization: `Bearer ${process.env.GH_TOKEN}`,
+              "Content-Type": "application/json",
+              "User-Agent": "verified-source-bootstrap",
+            },
+            body: JSON.stringify({ query, variables: { input } }),
+          });
+          const payload = await response.json();
+          if (!response.ok || payload.errors) {
+            throw new Error(JSON.stringify(payload.errors ?? payload));
+          }
+          console.log(payload.data.createCommitOnBranch.commit.url);
+          NODE

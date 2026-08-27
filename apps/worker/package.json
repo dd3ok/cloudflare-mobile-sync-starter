@@ -1,0 +1,30 @@
+{
+  "name": "@cloudflare-mobile-sync/worker",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "dev": "wrangler dev",
+    "migrate:local": "wrangler d1 migrations apply DB --local",
+    "migrate:requests:local": "wrangler d1 migrations apply REQUEST_DB --local",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "@cloudflare-mobile-sync/api-contract": "workspace:*",
+    "better-auth": "1.6.23",
+    "hono": "4.12.34",
+    "jose": "6.2.10",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.18.6",
+    "@cloudflare/workers-types": "5.20260815.1",
+    "auth": "1.6.23",
+    "vitest": "4.1.10",
+    "wrangler": "4.124.0"
+  }
+}
