@@ -1,0 +1,35 @@
+{
+  "name": "@cloudflare-mobile-sync/expo-app",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "main": "node_modules/expo/AppEntry.js",
+  "scripts": {
+    "build": "expo export --platform web --output-dir dist",
+    "dev": "expo start --dev-client",
+    "start": "expo start --dev-client",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@cloudflare-mobile-sync/api-contract": "workspace:*",
+    "@cloudflare-mobile-sync/client-core": "workspace:*",
+    "@cloudflare-mobile-sync/expo-client": "workspace:*",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "57.0.14",
+    "expo-crypto": "57.0.1",
+    "expo-dev-client": "57.0.13",
+    "expo-secure-store": "57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-nitro-google-signin": "2.0.0",
+    "react-native-nitro-modules": "0.36.5",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-web": "0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.17",
+    "typescript": "6.0.3"
+  }
+}

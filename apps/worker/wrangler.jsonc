@@ -1,0 +1,73 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "cloudflare-mobile-sync-example",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-20",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "triggers": { "crons": ["* * * * *"] },
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "invocation_logs": false
+    }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "cloudflare-mobile-sync-example",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "REQUEST_DB",
+      "database_name": "cloudflare-mobile-sync-request-example",
+      "database_id": "00000000-0000-0000-0000-000000000001",
+      "migrations_dir": "request-migrations"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "AUTH_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 60,
+        "period": 60
+      }
+    },
+    {
+      "name": "SYNC_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
+  "vars": {
+    "ALLOWED_COLLECTIONS": "notes-v1,app-settings-v1",
+    "BETTER_AUTH_URL": "https://sync.example.com",
+    "GOOGLE_WEB_CLIENT_ID": "123456789-cloudflare-mobile-sync.apps.googleusercontent.com",
+    "NATIVE_APPLICATION_ID": "com.example.cloudflaremobilesync",
+    "TRUSTED_ORIGINS": "com.example.cloudflaremobilesync://",
+    "REQUEST_PORTAL_ENABLED": "false",
+    "REQUEST_PORTAL_ORIGIN": "https://requests.example.com",
+    "REQUEST_PORTAL_ORGANIZATION_NAME": "Example Studio",
+    "REQUEST_PORTAL_PRODUCT_NAME": "Example App",
+    "REQUEST_PORTAL_PUBLIC_SCOPE": "organization",
+    "REQUEST_PORTAL_ACCOUNT_SCOPE": "example-app",
+    "REQUEST_PORTAL_NOTICE_VERSION": "unreleased",
+    "REQUEST_EVIDENCE_POLICY_VERSION": "unreleased",
+    "REQUEST_PORTAL_PENDING_MAX_AGE_DAYS": "30",
+    "REQUEST_PORTAL_IDENTITY_ISSUE_ENABLED": "false",
+    "REQUEST_PORTAL_ACCOUNT_DELETION_ENABLED": "false",
+    "REQUEST_DB_GENERATION": "example-generation-1",
+    "REQUEST_PORTAL_TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+    "REQUEST_PORTAL_ACCESS_TEAM_DOMAIN": "https://example.cloudflareaccess.com",
+    "REQUEST_PORTAL_ACCESS_AUDIENCE": "replace-with-access-application-audience",
+    "REQUEST_PORTAL_ADMIN_EMAILS": "admin@example.com"
+  }
+}

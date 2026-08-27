@@ -1,0 +1,26 @@
+packages:
+  - apps/*
+  - packages/*
+  - examples/*
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  workerd: true
+
+auditConfig:
+  ignoreGhsas:
+    # Temporary Expo/Metro-only exceptions. Enforced review deadline: 2026-09-12 UTC.
+    - GHSA-w3rx-r6r6-pgpr
+    - GHSA-5p2g-fcmc-qvqq
+
+overrides:
+  "brace-expansion@5.0.7": 5.0.9
+  "js-yaml@4.3.0": 4.3.1
+  lodash: 4.18.1
+  "nanoid@3.3.16": 3.3.18
+  "postcss@8.5.20": 8.5.23
+  # Miniflare still pins 0.34.x; keep the patched libvips bundle until upstream catches up.
+  sharp: 0.35.3
+  "undici@7.28.0": 7.29.0
+  uuid: 11.1.1
