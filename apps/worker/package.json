@@ -16,7 +16,7 @@
   "dependencies": {
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "better-auth": "1.6.23",
-    "hono": "4.12.34",
+    "hono": "4.13.4",
     "jose": "6.2.10",
     "zod": "4.4.3"
   },
