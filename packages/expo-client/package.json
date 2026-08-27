@@ -22,7 +22,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@better-auth/expo": "1.6.23",
+    "@better-auth/expo": "1.7.1",
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "@cloudflare-mobile-sync/client-core": "workspace:*",
     "better-auth": "1.6.23",
