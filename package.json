@@ -21,7 +21,7 @@
     "typecheck": "pnpm build:packages && pnpm -r --if-present typecheck"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.4",
+    "@biomejs/biome": "2.5.10",
     "@types/node": "24.13.2",
     "ajv": "8.20.0",
     "jsonc-parser": "3.3.1",
