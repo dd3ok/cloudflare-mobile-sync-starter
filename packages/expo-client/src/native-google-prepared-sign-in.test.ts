@@ -12,6 +12,7 @@ const attempt = {
 function fixture(input?: {
   authPath?: string;
   baselineCurrent?: boolean;
+  includeSignInCookie?: boolean;
   installResult?: boolean;
   signInContentType?: string;
   signInPayload?: unknown;
@@ -39,8 +40,12 @@ function fixture(input?: {
           status: input?.signInStatus ?? 200,
           headers: {
             "Content-Type": input?.signInContentType ?? "application/json",
-            "Set-Cookie":
-              "better-auth.session_token=prepared-session-cookie; Path=/; HttpOnly; Secure",
+            ...(input?.includeSignInCookie === false
+              ? {}
+              : {
+                  "Set-Cookie":
+                    "better-auth.session_token=prepared-session-cookie; Path=/; HttpOnly; Secure",
+                }),
           },
         },
       );
@@ -161,6 +166,21 @@ describe("prepared native Google sign-in", () => {
       "better-auth.session_token=prepared-session-cookie",
     );
     expect(revokeInit?.body).toBe(JSON.stringify({ token: "prepared-session-token" }));
+    expect(subject.clearCredentialState).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a success payload without a readable session cookie", async () => {
+    const subject = fixture({ includeSignInCookie: false });
+
+    await expect(subject.value.signIn()).rejects.toThrow(
+      "session ownership could not be established",
+    );
+
+    expect(subject.fetch.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://sync.example.test/v1/native-auth/google/attempts",
+      "https://sync.example.test/v1/auth/sign-in/social",
+    ]);
+    expect(subject.install).not.toHaveBeenCalled();
     expect(subject.clearCredentialState).toHaveBeenCalledOnce();
   });
 
