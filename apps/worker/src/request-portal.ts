@@ -160,7 +160,7 @@ function portalHeaders(nonce: string): Record<string, string> {
   return {
     "Content-Security-Policy": [
       "default-src 'none'",
-      `script-src 'nonce-${nonce}' https://accounts.google.com/gsi/client https://challenges.cloudflare.com/turnstile/v0/api.js`,
+      `script-src 'nonce-${nonce}' https://accounts.google.com/gsi/client https://challenges.cloudflare.com`,
       `style-src 'nonce-${nonce}' https://accounts.google.com/gsi/style`,
       "connect-src 'self' https://accounts.google.com https://challenges.cloudflare.com",
       "frame-src https://accounts.google.com https://challenges.cloudflare.com",
