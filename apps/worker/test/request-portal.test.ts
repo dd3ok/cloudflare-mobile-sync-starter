@@ -89,6 +89,7 @@ describe("request portal edge", () => {
     );
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(html).toContain("history.replaceState");
+    expect(html).toContain("data.receipt+'\\n'+link+'\\n\\n'+JSON.stringify");
     expect(html).toContain("request_case");
     expect(await english.text()).toContain("Requests and account deletion");
   });
@@ -126,6 +127,37 @@ describe("request portal edge", () => {
     expect(
       JSON.stringify(await env.REQUEST_DB.prepare("SELECT * FROM request_case").first()),
     ).not.toContain(result.receipt);
+  });
+
+  it("verifies Turnstile before rejecting a stale notice without storing", async () => {
+    const turnstile = vi.fn(async () => undefined);
+    const app = createApp({ requestPortal: { verifyTurnstile: turnstile } });
+    const counts = async () =>
+      await env.REQUEST_DB.prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM request_case) AS case_count,
+           (SELECT COUNT(*) FROM request_evidence) AS evidence_count`,
+      ).first<{ case_count: number; evidence_count: number }>();
+    const before = await counts();
+
+    const rejected = await request(app, "/api/cases", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        origin: "https://requests.portal.test",
+      },
+      body: JSON.stringify({
+        kind: "inquiry",
+        locale: "en",
+        noticeVersion: "stale-probe",
+        requestText: "non-storing verification probe",
+        turnstileToken: "test-token",
+      }),
+    });
+
+    expect(rejected.status).toBe(400);
+    expect(turnstile).toHaveBeenCalledOnce();
+    expect(await counts()).toEqual(before);
   });
 
   it("keeps the administrator route closed without an accepted Access principal", async () => {
