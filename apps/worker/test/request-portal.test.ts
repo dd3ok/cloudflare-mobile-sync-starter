@@ -90,6 +90,9 @@ describe("request portal edge", () => {
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(html).toContain("history.replaceState");
     expect(html).toContain("data.receipt+'\\n'+link+'\\n\\n'+JSON.stringify");
+    expect(html).toContain('<div id="turnstile-widget"></div>');
+    expect(html).toContain("turnstile.render('#turnstile-widget'");
+    expect(html).not.toContain('id="turnstile"');
     expect(html).toContain("request_case");
     expect(await english.text()).toContain("Requests and account deletion");
   });
