@@ -81,8 +81,13 @@ describe("request portal edge", () => {
 
     expect(korean.status).toBe(200);
     expect(english.status).toBe(200);
-    expect(korean.headers.get("content-security-policy")).toContain("script-src 'nonce-");
-    expect(korean.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    const contentSecurityPolicy = korean.headers.get("content-security-policy");
+    expect(contentSecurityPolicy).toContain("script-src 'nonce-");
+    expect(contentSecurityPolicy).toContain("https://challenges.cloudflare.com");
+    expect(contentSecurityPolicy).not.toContain(
+      "https://challenges.cloudflare.com/turnstile/v0/api.js",
+    );
+    expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(html).toContain("history.replaceState");
     expect(html).toContain("request_case");
     expect(await english.text()).toContain("Requests and account deletion");
