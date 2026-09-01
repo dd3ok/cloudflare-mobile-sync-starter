@@ -89,6 +89,7 @@ describe("request portal edge", () => {
     );
     expect(contentSecurityPolicy).toContain("frame-ancestors 'none'");
     expect(html).toContain("history.replaceState");
+    expect(html).toContain("data.receipt+'\\n'+link+'\\n\\n'+JSON.stringify");
     expect(html).toContain("request_case");
     expect(await english.text()).toContain("Requests and account deletion");
   });
