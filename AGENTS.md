@@ -17,10 +17,12 @@ Read `HANDOFF.md` and `docs/ARCHITECTURE.md` before changing the repository.
 - Do not automatically link accounts solely because providers return the same email address.
 - Preserve local-first behavior: authentication and remote synchronization are optional capabilities, not requirements for using a host application offline.
 - This repository is a self-hosted starter. Do not turn it into a shared multi-tenant service without an explicit product and security decision.
+- Keep product-specific app integration, build, store, and device-test work in `../products/<product>`.
+  Keep deployment manifests, bindings, remote changes, and operating evidence in `../platform-deployments`.
 
 ## Delivery requirements
 
-- Do not deploy production resources or create OAuth applications without explicit authorization and credentials from the owner.
+- Run production deployment and OAuth operations from `../platform-deployments` only after explicit owner authorization.
 - Never commit `.dev.vars`, `.env`, tokens, provider secrets, database exports, or real user data.
 - Keep dependency versions pinned through the lockfile and run the proportional test, type-check, lint, and security checks before each handoff.
 - Use migrations for every D1 schema change and test migrations against a disposable local database.
