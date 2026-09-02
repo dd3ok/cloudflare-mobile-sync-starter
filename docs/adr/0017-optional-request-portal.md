@@ -34,11 +34,14 @@ module boundary.
    with a D1 partial unique index. Rotate its 192-bit receipt with a
    receipt-version compare-and-set. A concurrent loser returns `409` rather
    than invalidating the winning receipt.
-5. Use the case UUID as the existing account-deletion operation ID. Completion
-   requires the APP_DB deletion receipt and proof that the deleted account
-   generation is absent. A later generation for the same Google subject is not
-   deleted during reconciliation. Operators cannot manually mark an automated
-   deletion as completed.
+5. Use the case UUID as the existing account-deletion operation ID. At case
+   creation, bind the target Product Account generation by storing a SHA-256
+   hash of its server-side user ID. Completion requires the APP_DB deletion
+   receipt, a matching target hash, and proof that the deleted generation is
+   absent. A later generation for the same Google subject is not deleted during
+   either the first attempt or reconciliation. A legacy pending case without a
+   target hash remains pending rather than choosing a current account.
+   Operators cannot manually mark an automated deletion as completed.
 6. Store only receipt digests. Browser links place the bearer in a URL fragment,
    remove it with `history.replaceState`, and submit it in a POST body. Request
    and response text are plain text limited to 4 KiB.

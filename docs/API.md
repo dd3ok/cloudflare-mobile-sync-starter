@@ -116,6 +116,13 @@ Google access token, server-side provider revocation is `unconfirmed`. A client
 may request native Google disconnect before deletion, but failure must not block
 service-data deletion. A PII-free receipt remains recoverable for seven days.
 
+Before sending `DELETE`, the client must durably journal the expected subject
+and operation ID. `client-core` provides `deleteAccountRecoverably` to enforce
+that ordering and `recoverAccountDeletion` to query the same capability after a
+lost response or process restart. The host clears the journal only after it has
+detached local metadata for that subject and conditionally cleared the matching
+session; a replacement account must be preserved.
+
 ## Errors
 
 ```json

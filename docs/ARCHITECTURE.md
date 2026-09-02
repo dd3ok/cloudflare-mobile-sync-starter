@@ -70,9 +70,12 @@ session.
 ## Module boundaries
 
 - `api-contract` owns portable runtime schemas and limits.
-- `client-core` owns platform-neutral transport, retry, and sync state.
-- `expo-client` owns prepared-session commit/abort, SecureStore session
-  integration, and a narrow `NativeGoogleCredentialProvider` interface,
+- `client-core` owns platform-neutral transport, retry, sync state, and the
+  ordering contract for durable account-deletion journaling and receipt
+  recovery.
+- `expo-client` owns prepared-session commit/abort, SecureStore session and
+  account-deletion journal integration, and a narrow
+  `NativeGoogleCredentialProvider` interface,
   including translation from the official Expo adapter's private origin header
   to the standard HTTP contract.
 - The host app owns the selected native Credential Manager library and its Expo

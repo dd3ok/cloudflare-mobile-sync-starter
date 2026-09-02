@@ -2,7 +2,11 @@ import { env } from "cloudflare:workers";
 import { LIMITS, type PullResponse, type PushResponse } from "@cloudflare-mobile-sync/api-contract";
 import { makeSignature } from "better-auth/crypto";
 import { describe, expect, it, vi } from "vitest";
-import { type AuthenticatedUser, deleteAccountData } from "../src/account";
+import {
+  type AuthenticatedUser,
+  deleteAccountData,
+  readAccountDeletionReceipt,
+} from "../src/account";
 import { createApp } from "../src/app";
 import {
   createAuth,
@@ -42,9 +46,6 @@ async function authenticate(request: Request): Promise<AuthenticatedUser | null>
 
 const app = createApp({
   authenticate,
-  async deleteAccount(_request, requestEnv, user) {
-    await requestEnv.DB.prepare(`DELETE FROM user WHERE id = ?`).bind(user.id).run();
-  },
 });
 
 async function seedUser(id: string, email = `${id}@example.test`): Promise<void> {
@@ -1204,7 +1205,7 @@ describe("Worker API", () => {
     expect(await deletion.json()).toMatchObject({
       operationId: DELETION_OPERATION_ID,
       serverDataDeleted: true,
-      providerRevocations: [],
+      providerRevocations: [{ providerId: "kakao", status: "unconfirmed" }],
     });
     expect(
       await env.DB.prepare(`SELECT COUNT(*) AS count FROM user WHERE id = ?`)
@@ -1271,13 +1272,16 @@ describe("Worker API", () => {
   it("returns and recovers a PII-free provider revocation outcome after response loss", async () => {
     const userId = `deletion-receipt-${crypto.randomUUID()}`;
     await seedUser(userId);
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt)
+       VALUES (?, ?, 'google', ?, ?, ?)`,
+    )
+      .bind(`deletion-account-${crypto.randomUUID()}`, `google-${userId}`, userId, now, now)
+      .run();
     const operationId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const deletionApp = createApp({
       authenticate,
-      async deleteAccount(_request, requestEnv, user) {
-        await requestEnv.DB.prepare(`DELETE FROM user WHERE id = ?`).bind(user.id).run();
-        return { providerIds: ["google"], providerRevocationFailures: ["google"] };
-      },
     });
     const response = await deletionApp.request(
       "https://sync.example.test/v1/account",
@@ -1340,5 +1344,110 @@ describe("Worker API", () => {
     await expect(deleteAccountData(env.DB, "missing-user")).rejects.toThrow(
       "Account deletion did not delete a user",
     );
+  });
+
+  it("rolls back user cascades when the deletion receipt cannot be inserted", async () => {
+    const userId = `deletion-rollback-${crypto.randomUUID()}`;
+    const operationId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    await seedUser(userId);
+    await push(userId, [
+      {
+        mutationId: `rollback-${crypto.randomUUID()}`,
+        collection: TEST_COLLECTION,
+        recordId: "rollback-record",
+        operation: "put",
+        baseRevision: 0,
+        payload: { private: true },
+      },
+    ]);
+    await env.DB.prepare(
+      `INSERT INTO account_deletion_receipt
+         (operation_hash, subject_hash, result_json, completed_at, expires_at)
+       VALUES (?, ?, '{}', ?, ?)`,
+    )
+      .bind(
+        await sha256Hex(operationId),
+        await sha256Hex("another-user"),
+        new Date().toISOString(),
+        Date.now() + 60_000,
+      )
+      .run();
+
+    await expect(
+      deleteAccountData(env.DB, userId, { operationId, expectedSubjectId: userId }),
+    ).rejects.toThrow();
+
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM user WHERE id = ?")
+        .bind(userId)
+        .first("count"),
+    ).toBe(1);
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM sync_records WHERE user_id = ?")
+        .bind(userId)
+        .first("count"),
+    ).toBe(1);
+  });
+
+  it("does not commit a success receipt when the target user cannot be deleted", async () => {
+    const userId = "deletion-guard-user";
+    const operationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    await seedUser(userId);
+    await env.DB.prepare(
+      `CREATE TRIGGER test_ignore_guarded_user_delete
+       BEFORE DELETE ON user WHEN OLD.id = 'deletion-guard-user'
+       BEGIN SELECT RAISE(IGNORE); END`,
+    ).run();
+
+    await expect(
+      deleteAccountData(env.DB, userId, { operationId, expectedSubjectId: userId }),
+    ).rejects.toThrow();
+
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM user WHERE id = ?")
+        .bind(userId)
+        .first("count"),
+    ).toBe(1);
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM account_deletion_receipt WHERE operation_hash = ?",
+      )
+        .bind(await sha256Hex(operationId))
+        .first("count"),
+    ).toBe(0);
+  });
+
+  it("aliases a concurrent operation only when an earlier receipt proves deletion", async () => {
+    const userId = `concurrent-deletion-${crypto.randomUUID()}`;
+    const firstOperationId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    const secondOperationId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    await seedUser(userId);
+    const first = await deleteAccountData(env.DB, userId, {
+      operationId: firstOperationId,
+      expectedSubjectId: userId,
+    });
+
+    await expect(
+      deleteAccountData(env.DB, userId, {
+        operationId: secondOperationId,
+        expectedSubjectId: userId,
+      }),
+    ).resolves.toEqual(first);
+    await expect(
+      readAccountDeletionReceipt(env.DB, {
+        operationId: secondOperationId,
+        expectedSubjectId: userId,
+      }),
+    ).resolves.toMatchObject({
+      operationId: secondOperationId,
+      serverDataDeleted: true,
+    });
+
+    await expect(
+      deleteAccountData(env.DB, "missing-without-proof", {
+        operationId: "99999999-9999-4999-8999-999999999999",
+        expectedSubjectId: "missing-without-proof",
+      }),
+    ).rejects.toThrow("Account deletion receipt was not committed with user deletion");
   });
 });

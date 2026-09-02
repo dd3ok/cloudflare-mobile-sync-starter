@@ -53,9 +53,10 @@ completed deletions before reopening traffic.
 
 ## Optional request portal
 
-Apply APP_DB migration `0008_request_purge_ledger.sql` before applying
-`request-migrations/0001_request_cases.sql` or enabling the portal. Record both
-migration hashes and the exact `REQUEST_DB_GENERATION` in the private deployment
+Apply APP_DB migration `0008_request_purge_ledger.sql` before applying the
+request migrations, including `0001_request_cases.sql` followed by
+`0002_account_deletion_generation.sql`, or enabling the portal. Record every
+migration hash and the exact `REQUEST_DB_GENERATION` in the private deployment
 lock.
 
 The scheduled handler writes the append-only APP_DB purge ledger before
