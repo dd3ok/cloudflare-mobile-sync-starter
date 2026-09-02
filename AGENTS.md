@@ -18,7 +18,8 @@ Read `HANDOFF.md` and `docs/ARCHITECTURE.md` before changing the repository.
 - Preserve local-first behavior: authentication and remote synchronization are optional capabilities, not requirements for using a host application offline.
 - This repository is a self-hosted starter. Do not turn it into a shared multi-tenant service without an explicit product and security decision.
 - Keep product-specific app integration, build, store, and device-test work in `../products/<product>`.
-  Keep deployment manifests, bindings, remote changes, and operating evidence in `../platform-deployments`.
+  Keep real product-specific deployment manifests, bindings, remote changes, and operating evidence in
+  `../platform-deployments`; keep deployable examples, validation rules, and placeholder configuration here.
 
 ## Delivery requirements
 
