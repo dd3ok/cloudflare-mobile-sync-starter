@@ -82,12 +82,23 @@ export async function deleteAccountData(
     const outcome = deletionOutcome(receipt.operationId, completedAt, providerIds, [
       ...providerRevocationFailures,
     ]);
-    const receiptInsert = await deletionReceiptInsert(db, receipt, outcome);
-    const [stored, deleted] = await db.batch([
+    const receiptInsert = await deletionReceiptInsert(db, receipt, outcome, userId);
+    const receiptGuard = await deletionReceiptInsert(db, receipt, outcome, userId);
+    const [stored, deleted, guard] = await db.batch([
       receiptInsert,
       db.prepare(`DELETE FROM user WHERE id = ?`).bind(userId),
+      // A surviving target makes this duplicate receipt insert abort and roll back the batch.
+      receiptGuard,
     ]);
-    if (stored?.meta.changes !== 1 || deleted?.meta.changes !== 1) {
+    if (
+      stored?.meta.changes !== 1 ||
+      (deleted?.meta.changes ?? 0) < 1 ||
+      guard?.meta.changes !== 0
+    ) {
+      if (stored?.meta.changes === 0 && deleted?.meta.changes === 0 && guard?.meta.changes === 0) {
+        const recovered = await recoverConcurrentAccountDeletion(db, userId, receipt);
+        if (recovered) return recovered;
+      }
       throw new Error("Account deletion receipt was not committed with user deletion");
     }
   } else {
@@ -122,12 +133,14 @@ async function deletionReceiptInsert(
   db: D1Database,
   receipt: AccountDeletionReceiptInput,
   outcome: AccountDeletionOutcome,
+  userId: string,
 ): Promise<D1PreparedStatement> {
   return db
     .prepare(
       `INSERT INTO account_deletion_receipt
          (operation_hash, subject_hash, result_json, completed_at, expires_at)
-       VALUES (?, ?, ?, ?, ?)`,
+       SELECT ?, ?, ?, ?, ?
+       WHERE EXISTS (SELECT 1 FROM user WHERE id = ?)`,
     )
     .bind(
       await sha256Hex(receipt.operationId),
@@ -139,24 +152,8 @@ async function deletionReceiptInsert(
       }),
       outcome.completedAt,
       Date.parse(outcome.completedAt) + DELETION_RECEIPT_TTL_MILLISECONDS,
+      userId,
     );
-}
-
-export async function storeAccountDeletionReceipt(
-  db: D1Database,
-  receipt: AccountDeletionReceiptInput,
-  providerOutcome: ProviderDeletionOutcome,
-): Promise<AccountDeletionOutcome> {
-  const completedAt = new Date().toISOString();
-  const outcome = deletionOutcome(
-    receipt.operationId,
-    completedAt,
-    providerOutcome.providerIds,
-    providerOutcome.providerRevocationFailures,
-  );
-  const stored = await (await deletionReceiptInsert(db, receipt, outcome)).run();
-  if (stored.meta.changes !== 1) throw new Error("Account deletion receipt was not stored");
-  return outcome;
 }
 
 export async function readAccountDeletionReceipt(
@@ -180,6 +177,36 @@ export async function readAccountDeletionReceipt(
     providerRevocations: stored.providerRevocations,
     completedAt: stored.completedAt,
   });
+}
+
+async function recoverConcurrentAccountDeletion(
+  db: D1Database,
+  userId: string,
+  receipt: AccountDeletionReceiptInput,
+): Promise<ProviderDeletionOutcome | null> {
+  const now = Date.now();
+  const subjectHash = await sha256Hex(receipt.expectedSubjectId);
+  await db
+    .prepare(
+      `INSERT OR IGNORE INTO account_deletion_receipt
+         (operation_hash, subject_hash, result_json, completed_at, expires_at)
+       SELECT ?, subject_hash, result_json, completed_at, expires_at
+       FROM account_deletion_receipt
+       WHERE subject_hash = ? AND expires_at > ?
+         AND NOT EXISTS (SELECT 1 FROM user WHERE id = ?)
+       ORDER BY completed_at DESC
+       LIMIT 1`,
+    )
+    .bind(await sha256Hex(receipt.operationId), subjectHash, now, userId)
+    .run();
+  const outcome = await readAccountDeletionReceipt(db, receipt);
+  if (!outcome) return null;
+  return {
+    providerIds: outcome.providerRevocations.map(({ providerId }) => providerId),
+    providerRevocationFailures: outcome.providerRevocations
+      .filter(({ status }) => status === "unconfirmed")
+      .map(({ providerId }) => providerId),
+  };
 }
 
 /** Internal saga lookup. This is intentionally not exposed as a public HTTP capability. */

@@ -13,6 +13,18 @@ export function setItem(key: string, value: string): void {
   values.set(key, value);
 }
 
+export async function getItemAsync(key: string): Promise<string | null> {
+  return getItem(key);
+}
+
+export async function setItemAsync(key: string, value: string): Promise<void> {
+  setItem(key, value);
+}
+
+export async function deleteItemAsync(key: string): Promise<void> {
+  values.delete(key);
+}
+
 export function failNextSetItem(key: string): void {
   failingKey = key;
 }

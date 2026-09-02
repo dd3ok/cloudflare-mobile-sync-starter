@@ -32,6 +32,13 @@ the journaled subject, preserves a different active account, and clears local
 authentication only when it still belongs to the deleted subject or no subject
 can be restored.
 
+If concurrent fresh sessions submit different operation IDs for the same
+subject, the first successful deletion invalidates both sessions. A later
+operation may receive an equivalent, non-extending receipt only when an
+unexpired receipt for the same subject hash already proves server deletion and
+the target user remains absent. A missing user without that proof remains an
+error.
+
 ## Consequences
 
 - Provider outage never blocks server-side deletion, but the UI can direct the

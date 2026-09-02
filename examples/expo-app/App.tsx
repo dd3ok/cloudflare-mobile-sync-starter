@@ -1,7 +1,14 @@
-import { syncOnce } from "@cloudflare-mobile-sync/client-core";
+import {
+  type AccountDeletionJournalEntry,
+  deleteAccountRecoverably,
+  type RecoverableAccountDeletion,
+  recoverAccountDeletion,
+  SyncApiError,
+  syncOnce,
+} from "@cloudflare-mobile-sync/client-core";
 import { clearExpoSessionForSubject, revokeExpoSession } from "@cloudflare-mobile-sync/expo-client";
 import * as Crypto from "expo-crypto";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,7 +21,14 @@ import {
   View,
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { authClient, mobileScheme, nativeGoogleAuth, syncBaseUrl, syncClient } from "./src/clients";
+import {
+  accountDeletionJournal,
+  authClient,
+  mobileScheme,
+  nativeGoogleAuth,
+  syncBaseUrl,
+  syncClient,
+} from "./src/clients";
 import { AccountMismatchError, LocalNotesStore } from "./src/local-notes";
 
 const notesStore = new LocalNotesStore();
@@ -62,11 +76,96 @@ function AppContent() {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingAccountDeletion, setPendingAccountDeletion] =
+    useState<AccountDeletionJournalEntry | null>(null);
+  const [accountDeletionJournalLoaded, setAccountDeletionJournalLoaded] = useState(false);
+  const reconciliationAttempt = useRef<string | null>(null);
   const user = session.data?.user;
+
+  const finishAccountDeletion = useCallback(async (entry: AccountDeletionJournalEntry) => {
+    await notesStore.detachDeletedAccount(entry.expectedSubjectId);
+    await clearExpoSessionForSubject(
+      { authClient, baseUrl: syncBaseUrl, scheme: mobileScheme },
+      entry.expectedSubjectId,
+      () => nativeGoogleAuth?.clearCredentialState(),
+    );
+    await accountDeletionJournal.clearPendingAccountDeletion(entry);
+    setPendingAccountDeletion(null);
+  }, []);
 
   useEffect(() => {
     void notesStore.load();
+    void accountDeletionJournal
+      .readPendingAccountDeletion()
+      .then((entry) => {
+        setPendingAccountDeletion(entry);
+        setAccountDeletionJournalLoaded(true);
+      })
+      .catch((error: unknown) =>
+        setMessage(error instanceof Error ? error.message : "Account deletion journal failed."),
+      );
   }, []);
+
+  useEffect(() => {
+    const pending = pendingAccountDeletion;
+    if (
+      !snapshot.loaded ||
+      snapshot.loadError !== null ||
+      !accountDeletionJournalLoaded ||
+      session.isPending ||
+      busy ||
+      !pending
+    ) {
+      if (!pending) reconciliationAttempt.current = null;
+      return;
+    }
+    const attemptKey = `${pending.operationId}:${user?.id ?? "signed-out"}`;
+    if (reconciliationAttempt.current === attemptKey) return;
+    reconciliationAttempt.current = attemptKey;
+
+    void (async () => {
+      setBusy(true);
+      setMessage(null);
+      try {
+        const recover = async () => {
+          try {
+            return await recoverAccountDeletion(syncClient, accountDeletionJournal);
+          } catch (error) {
+            if (
+              error instanceof SyncApiError &&
+              error.status === 404 &&
+              user?.id === pending.expectedSubjectId
+            ) {
+              return await deleteAccountRecoverably(
+                syncClient,
+                accountDeletionJournal,
+                pending.expectedSubjectId,
+                pending.operationId,
+              );
+            }
+            throw error;
+          }
+        };
+        const recovered = await recover();
+        if (!recovered) return;
+        await finishAccountDeletion(recovered.entry);
+        setMessage("Recovered a completed remote account deletion. Local notes were kept.");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Account deletion recovery failed.");
+      } finally {
+        setBusy(false);
+      }
+    })();
+  }, [
+    accountDeletionJournalLoaded,
+    busy,
+    finishAccountDeletion,
+    pendingAccountDeletion,
+    session.isPending,
+    snapshot.loaded,
+    snapshot.loadError,
+    user?.id,
+  ]);
 
   async function run(action: () => Promise<void>): Promise<void> {
     setBusy(true);
@@ -111,14 +210,6 @@ function AppContent() {
     await nativeGoogleAuth?.clearCredentialState();
   }
 
-  async function clearDeletedAccountSession(expectedSubjectId: string): Promise<void> {
-    await clearExpoSessionForSubject(
-      { authClient, baseUrl: syncBaseUrl, scheme: mobileScheme },
-      expectedSubjectId,
-      () => nativeGoogleAuth?.clearCredentialState(),
-    );
-  }
-
   function synchronize(): void {
     if (!user) return;
     void run(async () => {
@@ -140,7 +231,14 @@ function AppContent() {
   }
 
   function confirmAccountDeletion(): void {
-    if (!user) return;
+    if (
+      !user ||
+      snapshot.loadError !== null ||
+      !accountDeletionJournalLoaded ||
+      pendingAccountDeletion
+    ) {
+      return;
+    }
     Alert.alert(
       "Delete remote account?",
       "The server account and synchronized data will be removed. Notes stored on this device will remain.",
@@ -152,9 +250,23 @@ function AppContent() {
           onPress: () => {
             void run(async () => {
               const disconnect = await nativeGoogleAuth?.revokeAccess();
-              const deletion = await syncClient.deleteAccount(user.id, Crypto.randomUUID());
-              await notesStore.detachDeletedAccount(user.id);
-              await clearDeletedAccountSession(user.id);
+              let completed: RecoverableAccountDeletion;
+              try {
+                completed = await deleteAccountRecoverably(
+                  syncClient,
+                  accountDeletionJournal,
+                  user.id,
+                  Crypto.randomUUID(),
+                );
+              } catch (error) {
+                setPendingAccountDeletion(
+                  await accountDeletionJournal.readPendingAccountDeletion(),
+                );
+                throw error;
+              }
+              setPendingAccountDeletion(completed.entry);
+              const deletion = completed.outcome;
+              await finishAccountDeletion(completed.entry);
               const unconfirmed = deletion.providerRevocations
                 .filter(({ status }) => status === "unconfirmed")
                 .map(({ providerId }) => providerId);
@@ -308,7 +420,12 @@ function AppContent() {
               <ActionButton
                 label="Delete remote account"
                 onPress={confirmAccountDeletion}
-                disabled={busy}
+                disabled={
+                  busy ||
+                  snapshot.loadError !== null ||
+                  !accountDeletionJournalLoaded ||
+                  pendingAccountDeletion !== null
+                }
                 tone="danger"
               />
             </View>
