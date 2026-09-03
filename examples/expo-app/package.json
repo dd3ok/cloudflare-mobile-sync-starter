@@ -15,7 +15,7 @@
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "@cloudflare-mobile-sync/client-core": "workspace:*",
     "@cloudflare-mobile-sync/expo-client": "workspace:*",
-    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-async-storage/async-storage": "3.1.1",
     "expo": "57.0.14",
     "expo-crypto": "57.0.1",
     "expo-dev-client": "57.0.13",
