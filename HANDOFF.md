@@ -14,9 +14,17 @@ the plugin/client types. Package runtime source is unchanged. `pnpm check`
 passed, including 40 Expo-client tests, 50 Worker tests and example web export.
 All three archives were rebuilt for byeolsataro; exact hashes and local inputs
 are in that product's `vendor/cloudflare-mobile-sync/security-update-20261111.json`.
-Worker direct dependencies and deployed instances were not upgraded. Their
-security audit and any deployment remain separate; these local client checks
-do not establish server remediation or human release approval.
+The subsequent local Worker candidate pins Better Auth/auth CLI 1.7.7,
+Hono 4.13.11, and Zod 4.6.7. Vitest 4.1.12, Vite 8.1.6, and source-map-js
+1.2.2 remove the remaining Worker-path tool findings. `pnpm check` passes
+with 51 Worker tests, including a fixed legacy-format signed cookie reading
+existing records through real D1 authentication, cross-account/forged-cookie
+denial, and unchanged stored account/record/mutation data. Normal session
+expiry renewal remains allowed. Worker source, API and both migration sets
+are unchanged from the deployed source. No remote deployment occurred.
+The whole-workspace audit still blocks release on old example-app dependencies
+and expired image-size exemptions; do not interpret the zero Worker-path
+findings as a passing whole-workspace or production gate.
 
 - Android Google authentication is Credential Manager -> server-issued one-time
   nonce -> Google ID token -> Better Auth direct sign-in -> D1 session.

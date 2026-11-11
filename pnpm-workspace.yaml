@@ -24,5 +24,7 @@ overrides:
   "postcss@8.5.20": 8.5.23
   # Miniflare still pins 0.34.x; keep the patched libvips bundle until upstream catches up.
   sharp: 0.35.3
+  "source-map-js@1.2.1": 1.2.2
   "undici@7.28.0": 7.29.0
+  "vite@8.1.5": 8.1.6
   uuid: 11.1.1
