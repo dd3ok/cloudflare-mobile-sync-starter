@@ -7,6 +7,17 @@ portal behavior.
 
 ## Active invariants
 
+2026-11-11 local client security candidate: api-contract pins Zod 4.6.7;
+expo-client pins Better Auth/core 1.7.7 while retaining Expo adapter 1.6.23
+and its synchronous storage contract. Fetch 1.3.1 resolves to 1.3.2 to align
+the plugin/client types. Package runtime source is unchanged. `pnpm check`
+passed, including 40 Expo-client tests, 50 Worker tests and example web export.
+All three archives were rebuilt for byeolsataro; exact hashes and local inputs
+are in that product's `vendor/cloudflare-mobile-sync/security-update-20261111.json`.
+Worker direct dependencies and deployed instances were not upgraded. Their
+security audit and any deployment remain separate; these local client checks
+do not establish server remediation or human release approval.
+
 - Android Google authentication is Credential Manager -> server-issued one-time
   nonce -> Google ID token -> Better Auth direct sign-in -> D1 session.
 - Direct sign-in first creates an in-memory prepared session. A native host must
