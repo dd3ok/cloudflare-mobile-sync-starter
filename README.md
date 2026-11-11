@@ -10,7 +10,7 @@ database. This repository is a reusable starter source tree, not a shared hosted
 
 - Android Credential Manager obtains a Google ID token.
 - The Worker issues and atomically consumes a five-minute, one-time nonce.
-- Better Auth 1.6.23 verifies the Google token and creates the D1 session.
+- Better Auth 1.7.7 verifies the Google token and creates the D1 session.
 - The app stores only the Better Auth session cookie in Expo SecureStore.
 - Google access, refresh, and ID tokens are not persisted in D1.
 - Browser OAuth, Worker callbacks, private-scheme token handoff, Google client

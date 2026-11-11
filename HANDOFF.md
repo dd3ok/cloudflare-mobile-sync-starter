@@ -22,9 +22,14 @@ existing records through real D1 authentication, cross-account/forged-cookie
 denial, and unchanged stored account/record/mutation data. Normal session
 expiry renewal remains allowed. Worker source, API and both migration sets
 are unchanged from the deployed source. No remote deployment occurred.
-The whole-workspace audit still blocks release on old example-app dependencies
-and expired image-size exemptions; do not interpret the zero Worker-path
-findings as a passing whole-workspace or production gate.
+The required whole-workspace gate also updates the reference app's SDK 57
+patch/build dependencies and Worker test-tool dependencies. The expired
+image-size exemptions are removed; the full audit has zero findings and the
+peer check is clean. Wrangler remains 4.124.0 and the Workers test pool is
+0.23.0; migration to its renamed plugin is separate from this security patch.
+Product client archives and installed apps were not rebuilt or replaced.
+Local checks do not establish GitHub-verified source/CI, remote deployment,
+real Google sign-in/device restore, or human release approval.
 
 - Android Google authentication is Credential Manager -> server-issued one-time
   nonce -> Google ID token -> Better Auth direct sign-in -> D1 session.

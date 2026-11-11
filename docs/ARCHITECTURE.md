@@ -14,7 +14,7 @@ Host Android app
              v
 Cloudflare Worker
   strict native-auth guard
-  Better Auth 1.6.23
+  Better Auth 1.7.7
   user-scoped sync repository
              |
              v
@@ -53,7 +53,7 @@ plugin or Expo-only endpoint.
 
 The Worker does not implement JWT verification, OAuth code exchange, or cookie
 signing. Better Auth owns those primitives. The small nonce ledger adds replay
-state that Better Auth 1.6.23 does not persist.
+state outside Better Auth's token verification.
 
 This statement applies to native session authentication. When the optional
 request portal is enabled, its Google and Cloudflare Access adapters verify
