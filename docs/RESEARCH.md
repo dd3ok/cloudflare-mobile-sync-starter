@@ -9,7 +9,7 @@ Reviewed: 2026-08-19
 | Mobile | Expo SDK 57 / React Native 0.86 | supported; native build required |
 | Native Google | `react-native-nitro-google-signin` 2.0.0 | conditional pending signed-device gate |
 | Nitro runtime | `react-native-nitro-modules` 0.36.5 | exact reference-app pin |
-| Authentication | Better Auth and `@better-auth/expo` 1.6.23 | direct ID-token path verified from exact source |
+| Authentication | Better Auth/core 1.7.7; `@better-auth/expo` 1.6.23 | local compatibility checked; synchronous Expo adapter retained |
 | Worker | Hono + Cloudflare Workers | active |
 | Database | Better Auth direct D1 + platform migrations | active |
 | Other providers/platforms | iOS, Kakao, Naver | not implemented |
@@ -18,6 +18,8 @@ The detailed evidence, API behavior, token-persistence analysis, nonce design,
 Google client mapping, removal conditions, and official sources are in
 [Android native Google authentication baseline](./research/ANDROID_NATIVE_GOOGLE_AUTH_BASELINE_2026-08-19.md).
 The binding decision is [ADR 0014](./adr/0014-native-google-id-token-authentication.md).
+That dated research remains the historical 1.6.23 baseline. Current local security
+patch validation and the remaining remote/device gates are in [HANDOFF](../HANDOFF.md).
 
 ## Dependency policy
 
