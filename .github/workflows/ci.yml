@@ -27,6 +27,10 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Check Expo SDK dependency compatibility
+        run: |
+          pnpm --filter @cloudflare-mobile-sync/expo-app exec expo install --check
+          pnpm --filter @cloudflare-mobile-sync/expo-client exec expo install --check
       - run: pnpm check
       - run: pnpm security:audit
         timeout-minutes: 5
