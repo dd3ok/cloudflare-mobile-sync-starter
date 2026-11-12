@@ -1,12 +1,12 @@
 # Compatibility research index
 
-Reviewed: 2026-08-19
+Reviewed: 2026-11-12
 
 ## Current pinned baseline
 
 | Area | Selection | Status |
 | --- | --- | --- |
-| Mobile | Expo SDK 57 / React Native 0.86 | supported; native build required |
+| Mobile | Expo SDK 58 / React Native 0.88 | supported; native build required |
 | Native Google | `react-native-nitro-google-signin` 2.0.0 | conditional pending signed-device gate |
 | Nitro runtime | `react-native-nitro-modules` 0.36.5 | exact reference-app pin |
 | Authentication | Better Auth/core 1.7.7; `@better-auth/expo` 1.6.23 | local compatibility checked; synchronous Expo adapter retained |
@@ -33,7 +33,7 @@ patch validation and the remaining remote/device gates are in [HANDOFF](../HANDO
 
 ## Core official sources
 
-- [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/)
+- [Expo SDK 58](https://docs.expo.dev/versions/v58.0.0/)
 - [Expo Google authentication](https://docs.expo.dev/guides/google-authentication/)
 - [Android Credential Manager Sign in with Google](https://developer.android.com/identity/sign-in/credential-manager-siwg-implementation)
 - [Google server ID-token verification](https://developers.google.com/identity/gsi/web/guides/verify-google-id-token)

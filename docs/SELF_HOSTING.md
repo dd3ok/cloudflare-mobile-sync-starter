@@ -7,12 +7,12 @@ private deployment configuration for each host app and environment.
 
 ## Prerequisites
 
-- Node.js 22.13–24 and pnpm 11.9.0
+- Node.js 22.13+ (22.x) / 24.3+ (24.x) and pnpm 11.9.0
 - Cloudflare account with Workers, D1, rate limits, and a managed custom domain
 - Google Cloud project for the environment
 - Web OAuth client ID
 - Android OAuth client bound to the exact package and signing SHA-1
-- Expo SDK 57 development/release build capability
+- Expo SDK 58 development/release build capability
 
 ## Prepare source
 
@@ -88,3 +88,29 @@ Credential Manager adapter and fallback order.
 Use a development build, not Expo Go. Production approval additionally requires
 the Play App Signing SHA-1 and the signed physical-device test matrix in
 [Google setup](./PROVIDERS.md).
+
+## Windows reference-app builds
+
+Windows native builds can exceed the platform path limit inside pnpm's isolated
+package directories. Use a fresh, short-path checkout for native verification
+and set `nodeLinker: hoisted` in that checkout's `pnpm-workspace.yaml` before the
+first `pnpm install --frozen-lockfile`. Keep this local layout override out of
+source commits; the canonical workspace and CI continue to use isolated installs.
+The reference app's `index.ts` supports either layout.
+
+Install Android SDK CMake 3.31.6 and pass `-Pandroid.cmakeVersion=3.31.6` to the
+local Gradle build. If Windows long paths are disabled, also pass
+`-Pexpo.android.cmakeObjectPathMax=240` so CMake shortens generated object paths
+within the legacy path limit. This uses Expo SDK 58's root Gradle property,
+without editing native package sources or Windows registry settings.
+For example, after Android prebuild, run from the generated
+`examples/expo-app/android` directory:
+
+```powershell
+./gradlew.bat :app:assembleDebug -PreactNativeArchitectures=x86_64 -Pandroid.cmakeVersion=3.31.6 -Pexpo.android.cmakeObjectPathMax=240 --no-daemon
+```
+
+This builds an emulator-architecture debug APK; it does not validate a signed
+production build or real provider sign-in. Do not set this local CMake version
+for hosted Linux builds. See the official [Expo Windows path guidance](https://docs.expo.dev/troubleshooting/windows-long-paths/)
+and [monorepo installation guidance](https://docs.expo.dev/guides/monorepos/#package-managers-with-isolated-dependencies).

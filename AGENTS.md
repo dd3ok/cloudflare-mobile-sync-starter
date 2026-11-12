@@ -4,7 +4,7 @@ Read `HANDOFF.md` and `docs/ARCHITECTURE.md` before changing the repository.
 
 ## Documentation requirements
 
-- Before writing Expo code, read the exact versioned Expo SDK 57 documentation at <https://docs.expo.dev/versions/v57.0.0/>. Do not substitute unversioned or older Expo examples.
+- Before writing Expo code, read the exact versioned Expo SDK 58 documentation at <https://docs.expo.dev/versions/v58.0.0/>. Do not substitute unversioned or older Expo examples.
 - Before writing Cloudflare code, verify the current official Workers, D1, Wrangler, local development, migrations, limits, and testing documentation.
 - Before configuring authentication, verify the current official Better Auth, Better Auth Expo, Google, Kakao, and Naver documentation. Prefer maintained official libraries and documented adapters over custom protocol code.
 
