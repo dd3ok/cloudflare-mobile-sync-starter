@@ -7,6 +7,16 @@ portal behavior.
 
 ## Active invariants
 
+Current dependency maintenance (2026-11-12): CI pins pnpm/action-setup 6.1.1
+and actions/setup-node 7.1.0 by full release SHA, retaining pnpm 11.9.0 and
+Node 24. Worker development types are 5.20261110.1; runtime, compatibility
+date, bindings, and migrations are unchanged. The reference app and Expo
+client development environment use SDK 57.0.32 and React Native 0.86.3,
+with their SDK 57 companion packages aligned. AsyncStorage remains 2.2.0
+and the Better Auth Expo adapter remains 1.6.23. Product vendor archives,
+installed apps, and deployment source pins are not updated by these PRs;
+native build, sign-in, and device restore verification remain separate gates.
+
 2026-11-11 local client security candidate: api-contract pins Zod 4.6.7;
 expo-client pins Better Auth/core 1.7.7 while retaining Expo adapter 1.6.23
 and its synchronous storage contract. Fetch 1.3.1 resolves to 1.3.2 to align
