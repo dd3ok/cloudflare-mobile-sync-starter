@@ -9,19 +9,27 @@ allowBuilds:
   workerd: true
 
 auditConfig:
-  ignoreGhsas:
-    # Temporary Expo/Metro-only exceptions. Enforced review deadline: 2026-09-12 UTC.
-    - GHSA-w3rx-r6r6-pgpr
-    - GHSA-5p2g-fcmc-qvqq
+  ignoreGhsas: []
 
 overrides:
-  "brace-expansion@5.0.7": 5.0.9
+  "@better-fetch/fetch@1.3.1": 1.3.2
+  "brace-expansion@5.0.7": 5.0.12
   "browserslist@4.28.6": 4.28.7
-  "js-yaml@4.3.0": 4.3.1
+  # Keep SDK 57 constants compatible with the patched example CLI's router-server peer.
+  "expo-constants@57.0.12": 57.0.23
+  "fast-uri@3.1.5": 3.1.9
+  "glob@13.0.6": 14.0.4
+  "js-yaml@4.3.0": 4.3.2
   lodash: 4.18.1
+  "minimatch@10.2.5": 11.0.1
+  "metro>image-size": 2.0.4
   "nanoid@3.3.16": 3.3.18
   "postcss@8.5.20": 8.5.23
   # Miniflare still pins 0.34.x; keep the patched libvips bundle until upstream catches up.
-  sharp: 0.35.3
-  "undici@7.28.0": 7.29.0
+  sharp: 0.35.5
+  "source-map-js@1.2.1": 1.2.2
+  "undici@7.28.0": 7.30.1
+  "undici@7.29.0": 7.30.1
+  "vite@8.1.5": 8.1.6
   uuid: 11.1.1
+  "zod@4.4.3": 4.6.7

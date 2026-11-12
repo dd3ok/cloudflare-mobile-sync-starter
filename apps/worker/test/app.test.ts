@@ -92,6 +92,7 @@ async function seedTestAuthSession(auth: ReturnType<typeof createTestAuth>, suff
   const context = await auth.$context;
   const signature = await makeSignature(sessionToken, context.secret);
   return {
+    userId,
     sessionId,
     sessionToken,
     cookie: `${context.authCookies.sessionToken.name}=${sessionToken}.${signature}`,
@@ -196,6 +197,74 @@ describe("Worker API", () => {
         TRUSTED_ORIGINS: "com.example.myapp://,https://app.example.com",
       }),
     ).toEqual(["com.example.myapp://", "https://app.example.com"]);
+  });
+
+  it("keeps existing records and account isolation with a pre-upgrade signed session cookie", async () => {
+    const auth = createTestAuth();
+    const owner = await seedTestAuthSession(auth, "upgrade");
+    const other = await seedTestAuthSession(auth, "upgrade-other");
+    // Fixed pre-upgrade cookie format: HMAC-SHA256(token, unchanged signing key), base64.
+    // Deliberately independent of the upgraded library's cookie/signature helpers.
+    const cookie =
+      "__Secure-better-auth.session_token=native-origin-upgrade-token.OSzjcWq7XSBtxmudF8TJArrdTzbL2/ZhmqFHxf22/H4=";
+    const payload = { readingId: "saved-reading", memo: "보존할 테스트 메모", nested: [1, true] };
+    expect(
+      (
+        await push(owner.userId, [
+          {
+            mutationId: "upgrade-note-create",
+            collection: TEST_COLLECTION,
+            recordId: "saved-note",
+            operation: "put",
+            baseRevision: 0,
+            payload,
+          },
+        ])
+      ).status,
+    ).toBe(200);
+
+    const snapshot = async () =>
+      Promise.all([
+        env.DB.prepare("SELECT * FROM user WHERE id = ?").bind(owner.userId).first(),
+        // Normal session expiry refresh is allowed; identity and token must stay stable.
+        env.DB.prepare(
+          "SELECT id, token, createdAt, userId, ipAddress, userAgent FROM session WHERE id = ?",
+        )
+          .bind(owner.sessionId)
+          .first(),
+        ...["sync_records", "sync_changes", "sync_mutations"].map(async (table) => {
+          const rows = await env.DB.prepare(`SELECT * FROM ${table} WHERE user_id = ?`)
+            .bind(owner.userId)
+            .all();
+          return rows.results;
+        }),
+      ]);
+    const before = await snapshot();
+    const realApp = createApp();
+    const testEnv = {
+      ...env,
+      BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_SECRETS: "1:0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_URL: "https://sync.example.test",
+      TRUSTED_ORIGINS: TEST_MOBILE_ORIGIN,
+    };
+    const read = (sessionCookie?: string) =>
+      realApp.request(
+        `https://sync.example.test/v1/sync/pull?cursor=0&collection=${TEST_COLLECTION}`,
+        { headers: sessionCookie ? { cookie: sessionCookie } : {} },
+        testEnv,
+      );
+    const restored = await read(cookie);
+    expect(restored.status).toBe(200);
+    expect(await restored.json()).toMatchObject({
+      changes: [{ recordId: "saved-note", revision: 1, deleted: false, payload }],
+    });
+    const isolated = await read(other.cookie);
+    expect(isolated.status).toBe(200);
+    expect(await isolated.json()).toMatchObject({ changes: [] });
+    expect((await read()).status).toBe(401);
+    expect((await read(cookie.replace(".OSz", ".ASz"))).status).toBe(401);
+    expect(await snapshot()).toEqual(before);
   });
 
   it("revokes a D1 session from a trusted standard origin", async () => {
