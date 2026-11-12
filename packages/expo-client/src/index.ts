@@ -12,6 +12,10 @@ import { fetchWithTimeout } from "./fetch-with-timeout";
 import { validateMobileScheme } from "./mobile-scheme";
 import { promoteExpoOriginHeader } from "./origin-header";
 
+export {
+  createExpoAccountDeletionJournal,
+  type ExpoAccountDeletionJournalOptions,
+} from "./account-deletion-journal";
 export type { ExpoSessionOwnership } from "./auth-session-ownership";
 export {
   createNativeGoogleAuth,

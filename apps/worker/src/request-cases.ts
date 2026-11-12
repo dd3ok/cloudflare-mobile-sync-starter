@@ -111,6 +111,7 @@ interface RequestCaseRow {
   created_at: number;
   closed_at: number | null;
   purge_after: number | null;
+  target_account_hash: string | null;
 }
 
 interface RequestCasesInternals {
@@ -275,6 +276,7 @@ export function createRequestCases(
     fingerprint: string | null,
     scope: string,
     text: string | null,
+    targetAccountHash: string | null = null,
   ): Promise<{ row: RequestCaseRow; receipt: Receipt }> {
     const caseId = crypto.randomUUID();
     const receipt = await issueReceipt(caseId);
@@ -284,9 +286,9 @@ export function createRequestCases(
       env.REQUEST_DB.prepare(
         `INSERT INTO request_case
            (case_id, scope, kind, privacy_action, subject_fingerprint, request_text,
-            response_text, status, outcome_code, locale, notice_version, receipt_digest,
-            receipt_version, created_at, closed_at, purge_after)
-         VALUES (?, ?, ?, ?, ?, ?, NULL, 'pending', NULL, ?, ?, ?, 1, ?, NULL, NULL)`,
+             response_text, status, outcome_code, locale, notice_version, receipt_digest,
+             receipt_version, created_at, closed_at, purge_after, target_account_hash)
+          VALUES (?, ?, ?, ?, ?, ?, NULL, 'pending', NULL, ?, ?, ?, 1, ?, NULL, NULL, ?)`,
       ).bind(
         caseId,
         scope,
@@ -298,6 +300,7 @@ export function createRequestCases(
         input.noticeVersion,
         receipt.digest,
         createdAt,
+        targetAccountHash,
       ),
       env.REQUEST_DB.prepare(
         `INSERT INTO request_evidence
@@ -353,7 +356,13 @@ export function createRequestCases(
       throw new PublicError(404, "NOT_FOUND", "An existing account was not found");
     }
     try {
-      return await insertCase(input, fingerprint, config.accountScope, null);
+      return await insertCase(
+        input,
+        fingerprint,
+        config.accountScope,
+        null,
+        await sha256Hex(account.userId),
+      );
     } catch (error) {
       if (!(await pendingDeletion(fingerprint))) throw error;
       throw new PublicError(409, "CONFLICT", "The deletion request changed; try again");
@@ -385,14 +394,21 @@ export function createRequestCases(
     row: RequestCaseRow,
     identity: VerifiedGoogleIdentity,
   ): Promise<RequestCaseRow> {
+    const targetAccountHash = row.target_account_hash;
+    // Cases created before the generation-binding migration cannot safely choose a target.
+    if (!targetAccountHash) return row;
     let receipt = await readAccountDeletionOutcomeByOperation(env.DB, row.case_id);
     let account = await findGoogleAccountBySubject(env.DB, identity.subject);
     if (receipt) {
+      if (receipt.subjectHash !== targetAccountHash) {
+        throw new Error("Account deletion receipt does not match the request target");
+      }
       const targetStillExists =
-        account !== null && (await sha256Hex(account.userId)) === receipt.subjectHash;
+        account !== null && (await sha256Hex(account.userId)) === targetAccountHash;
       return targetStillExists ? row : await finishDeletion(row);
     }
     if (!account) return row;
+    if ((await sha256Hex(account.userId)) !== targetAccountHash) return row;
 
     try {
       await deleteAccountData(env.DB, account.userId, {
@@ -405,9 +421,12 @@ export function createRequestCases(
     }
     receipt ??= await readAccountDeletionOutcomeByOperation(env.DB, row.case_id);
     if (!receipt?.outcome.serverDataDeleted) return row;
+    if (receipt.subjectHash !== targetAccountHash) {
+      throw new Error("Account deletion receipt does not match the request target");
+    }
     account = await findGoogleAccountBySubject(env.DB, identity.subject);
     const targetStillExists =
-      account !== null && (await sha256Hex(account.userId)) === receipt.subjectHash;
+      account !== null && (await sha256Hex(account.userId)) === targetAccountHash;
     return targetStillExists ? row : await finishDeletion(row);
   }
 

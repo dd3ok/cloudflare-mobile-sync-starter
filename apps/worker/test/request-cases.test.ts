@@ -219,6 +219,45 @@ describe("RequestCases", () => {
     ).toBe("new-generation");
   });
 
+  it("does not retarget a pending pre-receipt deletion to a new account generation", async () => {
+    const subject = "google-subject-pre-receipt-generation";
+    await seedGoogleUser("pre-receipt-old", subject);
+    await env.DB.prepare(
+      `CREATE TRIGGER test_block_pre_receipt_delete
+       BEFORE DELETE ON user WHEN OLD.id = 'pre-receipt-old'
+       BEGIN SELECT RAISE(ABORT, 'blocked for test'); END`,
+    ).run();
+    const cases = createRequestCases(env, config, { receiptSecret: receiptGenerator() });
+    const input: OpenCase = {
+      kind: "account_deletion",
+      locale: "en",
+      noticeVersion: config.noticeVersion,
+    };
+    const proof: RequestProof = {
+      kind: "google",
+      identity: { provider: "google", subject },
+    };
+
+    const pending = await cases.open(input, proof);
+    await env.DB.prepare("DROP TRIGGER test_block_pre_receipt_delete").run();
+    await env.DB.prepare("DELETE FROM user WHERE id = 'pre-receipt-old'").run();
+    await seedGoogleUser("pre-receipt-new", subject);
+
+    const retried = await cases.open(input, proof);
+
+    expect(retried).toMatchObject({ caseId: pending.caseId, status: "pending" });
+    expect(
+      await env.DB.prepare("SELECT id FROM user WHERE id = 'pre-receipt-new'").first("id"),
+    ).toBe("pre-receipt-new");
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM account_deletion_receipt WHERE operation_hash = ?",
+      )
+        .bind(await sha256Hex(pending.caseId))
+        .first("count"),
+    ).toBe(0);
+  });
+
   it("expires text-bearing pending cases at the configured boundary and reuses terminal purge", async () => {
     let currentTime = Date.parse("2026-08-26T00:00:00.000Z");
     const cases = createRequestCases(env, config, {

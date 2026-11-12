@@ -136,6 +136,69 @@ export interface SyncClient {
   ): Promise<RetainedTombstoneResponse>;
 }
 
+export interface AccountDeletionJournalEntry {
+  expectedSubjectId: string;
+  operationId: string;
+}
+
+export interface AccountDeletionJournal {
+  readPendingAccountDeletion(): Promise<AccountDeletionJournalEntry | null>;
+  /** Must not overwrite a different pending deletion capability. */
+  writePendingAccountDeletion(entry: AccountDeletionJournalEntry): Promise<void>;
+  clearPendingAccountDeletion(entry: AccountDeletionJournalEntry): Promise<void>;
+}
+
+export interface RecoverableAccountDeletion {
+  entry: AccountDeletionJournalEntry;
+  outcome: AccountDeletionOutcome;
+}
+
+function accountDeletionEntry(
+  expectedSubjectId: string,
+  operationId: string,
+): AccountDeletionJournalEntry {
+  return accountDeletionStatusRequestSchema.parse({ expectedSubjectId, operationId });
+}
+
+/** Persist the deletion capability before issuing the destructive request. */
+export async function deleteAccountRecoverably(
+  client: SyncClient,
+  journal: AccountDeletionJournal,
+  expectedSubjectId: string,
+  operationId: string,
+  signal?: CancellationSignal,
+): Promise<RecoverableAccountDeletion> {
+  const entry = accountDeletionEntry(expectedSubjectId, operationId);
+  const pending = await journal.readPendingAccountDeletion();
+  if (
+    pending &&
+    (pending.expectedSubjectId !== entry.expectedSubjectId ||
+      pending.operationId !== entry.operationId)
+  ) {
+    throw new Error("Another account deletion is already pending");
+  }
+  if (!pending) await journal.writePendingAccountDeletion(entry);
+  const outcome = await client.deleteAccount(entry.expectedSubjectId, entry.operationId, signal);
+  return { entry, outcome };
+}
+
+/** Recover a completed deletion after response loss; cleanup must precede journal clearing. */
+export async function recoverAccountDeletion(
+  client: SyncClient,
+  journal: AccountDeletionJournal,
+  signal?: CancellationSignal,
+): Promise<RecoverableAccountDeletion | null> {
+  const pending = await journal.readPendingAccountDeletion();
+  if (!pending) return null;
+  const entry = accountDeletionEntry(pending.expectedSubjectId, pending.operationId);
+  const outcome = await client.accountDeletionStatus(
+    entry.expectedSubjectId,
+    entry.operationId,
+    signal,
+  );
+  return { entry, outcome };
+}
+
 export interface SyncStore {
   getPendingMutations(limit: number): Promise<SyncMutation[]>;
   applyPushResults(results: readonly MutationResult[]): Promise<void>;

@@ -2,7 +2,11 @@ import { env } from "cloudflare:workers";
 import { LIMITS, type PullResponse, type PushResponse } from "@cloudflare-mobile-sync/api-contract";
 import { makeSignature } from "better-auth/crypto";
 import { describe, expect, it, vi } from "vitest";
-import { type AuthenticatedUser, deleteAccountData } from "../src/account";
+import {
+  type AuthenticatedUser,
+  deleteAccountData,
+  readAccountDeletionReceipt,
+} from "../src/account";
 import { createApp } from "../src/app";
 import {
   createAuth,
@@ -42,9 +46,6 @@ async function authenticate(request: Request): Promise<AuthenticatedUser | null>
 
 const app = createApp({
   authenticate,
-  async deleteAccount(_request, requestEnv, user) {
-    await requestEnv.DB.prepare(`DELETE FROM user WHERE id = ?`).bind(user.id).run();
-  },
 });
 
 async function seedUser(id: string, email = `${id}@example.test`): Promise<void> {
@@ -91,6 +92,7 @@ async function seedTestAuthSession(auth: ReturnType<typeof createTestAuth>, suff
   const context = await auth.$context;
   const signature = await makeSignature(sessionToken, context.secret);
   return {
+    userId,
     sessionId,
     sessionToken,
     cookie: `${context.authCookies.sessionToken.name}=${sessionToken}.${signature}`,
@@ -195,6 +197,74 @@ describe("Worker API", () => {
         TRUSTED_ORIGINS: "com.example.myapp://,https://app.example.com",
       }),
     ).toEqual(["com.example.myapp://", "https://app.example.com"]);
+  });
+
+  it("keeps existing records and account isolation with a pre-upgrade signed session cookie", async () => {
+    const auth = createTestAuth();
+    const owner = await seedTestAuthSession(auth, "upgrade");
+    const other = await seedTestAuthSession(auth, "upgrade-other");
+    // Fixed pre-upgrade cookie format: HMAC-SHA256(token, unchanged signing key), base64.
+    // Deliberately independent of the upgraded library's cookie/signature helpers.
+    const cookie =
+      "__Secure-better-auth.session_token=native-origin-upgrade-token.OSzjcWq7XSBtxmudF8TJArrdTzbL2/ZhmqFHxf22/H4=";
+    const payload = { readingId: "saved-reading", memo: "보존할 테스트 메모", nested: [1, true] };
+    expect(
+      (
+        await push(owner.userId, [
+          {
+            mutationId: "upgrade-note-create",
+            collection: TEST_COLLECTION,
+            recordId: "saved-note",
+            operation: "put",
+            baseRevision: 0,
+            payload,
+          },
+        ])
+      ).status,
+    ).toBe(200);
+
+    const snapshot = async () =>
+      Promise.all([
+        env.DB.prepare("SELECT * FROM user WHERE id = ?").bind(owner.userId).first(),
+        // Normal session expiry refresh is allowed; identity and token must stay stable.
+        env.DB.prepare(
+          "SELECT id, token, createdAt, userId, ipAddress, userAgent FROM session WHERE id = ?",
+        )
+          .bind(owner.sessionId)
+          .first(),
+        ...["sync_records", "sync_changes", "sync_mutations"].map(async (table) => {
+          const rows = await env.DB.prepare(`SELECT * FROM ${table} WHERE user_id = ?`)
+            .bind(owner.userId)
+            .all();
+          return rows.results;
+        }),
+      ]);
+    const before = await snapshot();
+    const realApp = createApp();
+    const testEnv = {
+      ...env,
+      BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_SECRETS: "1:0123456789abcdefghijklmnopqrstuvwxyz",
+      BETTER_AUTH_URL: "https://sync.example.test",
+      TRUSTED_ORIGINS: TEST_MOBILE_ORIGIN,
+    };
+    const read = (sessionCookie?: string) =>
+      realApp.request(
+        `https://sync.example.test/v1/sync/pull?cursor=0&collection=${TEST_COLLECTION}`,
+        { headers: sessionCookie ? { cookie: sessionCookie } : {} },
+        testEnv,
+      );
+    const restored = await read(cookie);
+    expect(restored.status).toBe(200);
+    expect(await restored.json()).toMatchObject({
+      changes: [{ recordId: "saved-note", revision: 1, deleted: false, payload }],
+    });
+    const isolated = await read(other.cookie);
+    expect(isolated.status).toBe(200);
+    expect(await isolated.json()).toMatchObject({ changes: [] });
+    expect((await read()).status).toBe(401);
+    expect((await read(cookie.replace(".OSz", ".ASz"))).status).toBe(401);
+    expect(await snapshot()).toEqual(before);
   });
 
   it("revokes a D1 session from a trusted standard origin", async () => {
@@ -1204,7 +1274,7 @@ describe("Worker API", () => {
     expect(await deletion.json()).toMatchObject({
       operationId: DELETION_OPERATION_ID,
       serverDataDeleted: true,
-      providerRevocations: [],
+      providerRevocations: [{ providerId: "kakao", status: "unconfirmed" }],
     });
     expect(
       await env.DB.prepare(`SELECT COUNT(*) AS count FROM user WHERE id = ?`)
@@ -1271,13 +1341,16 @@ describe("Worker API", () => {
   it("returns and recovers a PII-free provider revocation outcome after response loss", async () => {
     const userId = `deletion-receipt-${crypto.randomUUID()}`;
     await seedUser(userId);
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt)
+       VALUES (?, ?, 'google', ?, ?, ?)`,
+    )
+      .bind(`deletion-account-${crypto.randomUUID()}`, `google-${userId}`, userId, now, now)
+      .run();
     const operationId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const deletionApp = createApp({
       authenticate,
-      async deleteAccount(_request, requestEnv, user) {
-        await requestEnv.DB.prepare(`DELETE FROM user WHERE id = ?`).bind(user.id).run();
-        return { providerIds: ["google"], providerRevocationFailures: ["google"] };
-      },
     });
     const response = await deletionApp.request(
       "https://sync.example.test/v1/account",
@@ -1340,5 +1413,110 @@ describe("Worker API", () => {
     await expect(deleteAccountData(env.DB, "missing-user")).rejects.toThrow(
       "Account deletion did not delete a user",
     );
+  });
+
+  it("rolls back user cascades when the deletion receipt cannot be inserted", async () => {
+    const userId = `deletion-rollback-${crypto.randomUUID()}`;
+    const operationId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    await seedUser(userId);
+    await push(userId, [
+      {
+        mutationId: `rollback-${crypto.randomUUID()}`,
+        collection: TEST_COLLECTION,
+        recordId: "rollback-record",
+        operation: "put",
+        baseRevision: 0,
+        payload: { private: true },
+      },
+    ]);
+    await env.DB.prepare(
+      `INSERT INTO account_deletion_receipt
+         (operation_hash, subject_hash, result_json, completed_at, expires_at)
+       VALUES (?, ?, '{}', ?, ?)`,
+    )
+      .bind(
+        await sha256Hex(operationId),
+        await sha256Hex("another-user"),
+        new Date().toISOString(),
+        Date.now() + 60_000,
+      )
+      .run();
+
+    await expect(
+      deleteAccountData(env.DB, userId, { operationId, expectedSubjectId: userId }),
+    ).rejects.toThrow();
+
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM user WHERE id = ?")
+        .bind(userId)
+        .first("count"),
+    ).toBe(1);
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM sync_records WHERE user_id = ?")
+        .bind(userId)
+        .first("count"),
+    ).toBe(1);
+  });
+
+  it("does not commit a success receipt when the target user cannot be deleted", async () => {
+    const userId = "deletion-guard-user";
+    const operationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    await seedUser(userId);
+    await env.DB.prepare(
+      `CREATE TRIGGER test_ignore_guarded_user_delete
+       BEFORE DELETE ON user WHEN OLD.id = 'deletion-guard-user'
+       BEGIN SELECT RAISE(IGNORE); END`,
+    ).run();
+
+    await expect(
+      deleteAccountData(env.DB, userId, { operationId, expectedSubjectId: userId }),
+    ).rejects.toThrow();
+
+    expect(
+      await env.DB.prepare("SELECT COUNT(*) AS count FROM user WHERE id = ?")
+        .bind(userId)
+        .first("count"),
+    ).toBe(1);
+    expect(
+      await env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM account_deletion_receipt WHERE operation_hash = ?",
+      )
+        .bind(await sha256Hex(operationId))
+        .first("count"),
+    ).toBe(0);
+  });
+
+  it("aliases a concurrent operation only when an earlier receipt proves deletion", async () => {
+    const userId = `concurrent-deletion-${crypto.randomUUID()}`;
+    const firstOperationId = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
+    const secondOperationId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    await seedUser(userId);
+    const first = await deleteAccountData(env.DB, userId, {
+      operationId: firstOperationId,
+      expectedSubjectId: userId,
+    });
+
+    await expect(
+      deleteAccountData(env.DB, userId, {
+        operationId: secondOperationId,
+        expectedSubjectId: userId,
+      }),
+    ).resolves.toEqual(first);
+    await expect(
+      readAccountDeletionReceipt(env.DB, {
+        operationId: secondOperationId,
+        expectedSubjectId: userId,
+      }),
+    ).resolves.toMatchObject({
+      operationId: secondOperationId,
+      serverDataDeleted: true,
+    });
+
+    await expect(
+      deleteAccountData(env.DB, "missing-without-proof", {
+        operationId: "99999999-9999-4999-8999-999999999999",
+        expectedSubjectId: "missing-without-proof",
+      }),
+    ).rejects.toThrow("Account deletion receipt was not committed with user deletion");
   });
 });

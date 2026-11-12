@@ -19,10 +19,9 @@ production-readiness are separate decisions.
 - [ ] verify public CI on the exact commit
 - [ ] publish an immutable pre-release and attach reviewed provenance
 
-The dependency audit currently has two time-bounded Expo/Metro build-tool
-exceptions documented in the security model. They have no published patched
-release and expire fail-closed on 2026-09-12 UTC; they are not a clean-audit
-claim.
+The 2026-11-11 local security candidate removes the two expired Expo/Metro
+exceptions and passes the whole-workspace dependency audit with no findings.
+Exact-commit public CI and source publication remain separate gates.
 
 ## Product release blockers
 

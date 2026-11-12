@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  type AccountDeletionJournal,
   createSyncClient,
+  deleteAccountRecoverably,
   type HttpTransport,
+  recoverAccountDeletion,
   type SyncClient,
   type SyncStore,
   syncOnce,
@@ -9,11 +12,47 @@ import {
   type TransportResponse,
 } from "./index";
 
+class MemoryAccountDeletionJournal implements AccountDeletionJournal {
+  entry: Awaited<ReturnType<AccountDeletionJournal["readPendingAccountDeletion"]>> = null;
+  readonly events: string[] = [];
+
+  async readPendingAccountDeletion() {
+    this.events.push("read");
+    return this.entry;
+  }
+
+  async writePendingAccountDeletion(entry: NonNullable<typeof this.entry>) {
+    this.events.push("write");
+    if (
+      this.entry &&
+      (this.entry.expectedSubjectId !== entry.expectedSubjectId ||
+        this.entry.operationId !== entry.operationId)
+    ) {
+      throw new Error("Another account deletion is already pending");
+    }
+    this.entry = entry;
+  }
+
+  async clearPendingAccountDeletion(entry: NonNullable<typeof this.entry>) {
+    this.events.push("clear");
+    if (
+      this.entry?.expectedSubjectId === entry.expectedSubjectId &&
+      this.entry.operationId === entry.operationId
+    ) {
+      this.entry = null;
+    }
+  }
+}
+
 class FakeTransport implements HttpTransport {
   readonly requests: TransportRequest[] = [];
-  constructor(private readonly responses: TransportResponse[]) {}
+  constructor(
+    private readonly responses: TransportResponse[],
+    private readonly onSend?: () => void,
+  ) {}
 
   async send(request: TransportRequest): Promise<TransportResponse> {
+    this.onSend?.();
     this.requests.push(request);
     const response = this.responses.shift();
     if (!response) throw new Error("No fake response configured");
@@ -205,6 +244,85 @@ describe("createSyncClient", () => {
         tombstone,
       },
     });
+  });
+});
+
+describe("recoverable account deletion", () => {
+  const operationId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  const outcome = {
+    operationId,
+    serverDataDeleted: true as const,
+    providerRevocations: [],
+    completedAt: "2026-08-13T00:00:00.000Z",
+  };
+
+  it("persists the capability before DELETE and leaves it journaled for local cleanup", async () => {
+    const journal = new MemoryAccountDeletionJournal();
+    const events = journal.events;
+    const transport = new FakeTransport([{ status: 200, body: outcome }], () =>
+      events.push("delete"),
+    );
+    const client = createSyncClient({ transport, retry });
+
+    await expect(
+      deleteAccountRecoverably(client, journal, "account-a", operationId),
+    ).resolves.toEqual({
+      entry: { expectedSubjectId: "account-a", operationId },
+      outcome,
+    });
+    expect(events).toEqual(["read", "write", "delete"]);
+    expect(journal.entry).toEqual({ expectedSubjectId: "account-a", operationId });
+  });
+
+  it("does not overwrite another pending deletion capability", async () => {
+    const journal = new MemoryAccountDeletionJournal();
+    journal.entry = {
+      expectedSubjectId: "account-a",
+      operationId: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+    };
+    const transport = new FakeTransport([{ status: 200, body: outcome }]);
+    const client = createSyncClient({ transport, retry });
+
+    await expect(
+      deleteAccountRecoverably(client, journal, "account-b", operationId),
+    ).rejects.toThrow("Another account deletion is already pending");
+    expect(journal.entry).toMatchObject({ expectedSubjectId: "account-a" });
+    expect(transport.requests).toHaveLength(0);
+  });
+
+  it("keeps the durable capability when the destructive request loses its response", async () => {
+    const journal = new MemoryAccountDeletionJournal();
+    const client = createSyncClient({
+      transport: {
+        async send() {
+          throw new Error("response lost");
+        },
+      },
+      retry,
+      retryPolicy: { maxAttempts: 1 },
+    });
+
+    await expect(
+      deleteAccountRecoverably(client, journal, "account-a", operationId),
+    ).rejects.toThrow("response lost");
+    expect(journal.entry).toEqual({ expectedSubjectId: "account-a", operationId });
+  });
+
+  it("recovers with the exact journaled subject and operation capability", async () => {
+    const journal = new MemoryAccountDeletionJournal();
+    journal.entry = { expectedSubjectId: "account-a", operationId };
+    const transport = new FakeTransport([{ status: 200, body: outcome }]);
+    const client = createSyncClient({ transport, retry });
+
+    await expect(recoverAccountDeletion(client, journal)).resolves.toEqual({
+      entry: journal.entry,
+      outcome,
+    });
+    expect(transport.requests[0]).toMatchObject({
+      path: "/v1/account-deletions/status",
+      body: { expectedSubjectId: "account-a", operationId },
+    });
+    expect(journal.entry).not.toBeNull();
   });
 });
 

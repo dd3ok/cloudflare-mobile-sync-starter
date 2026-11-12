@@ -15,9 +15,7 @@ import {
   type AuthenticatedUser,
   deleteAccountData,
   getAccount,
-  type ProviderDeletionOutcome,
   readAccountDeletionReceipt,
-  storeAccountDeletionReceipt,
 } from "./account";
 import { createAuth } from "./auth";
 import { commaSeparated, type Env } from "./env";
@@ -32,16 +30,10 @@ import { pullChanges, pushMutations } from "./sync-repository";
 
 type Variables = { requestId: string; user: AuthenticatedUser };
 type Authenticate = (request: Request, env: Env) => Promise<AuthenticatedUser | null>;
-type DeleteAccount = (
-  request: Request,
-  env: Env,
-  user: AuthenticatedUser,
-) => Promise<ProviderDeletionOutcome | undefined>;
 type HandleAuth = (request: Request, env: Env) => Promise<Response>;
 
 export interface AppDependencies {
   authenticate?: Authenticate;
-  deleteAccount?: DeleteAccount;
   handleAuth?: HandleAuth;
   requestPortal?: RequestPortalDependencies;
 }
@@ -337,24 +329,12 @@ export function createApp(dependencies: AppDependencies = {}) {
     if (Date.now() - user.sessionCreatedAt.getTime() > 24 * 60 * 60 * 1_000) {
       throw new PublicError(401, "UNAUTHORIZED", "A fresh login is required");
     }
-    if (dependencies.deleteAccount) {
-      const providerOutcome = (await dependencies.deleteAccount(
-        context.req.raw,
-        context.env,
-        user,
-      )) ?? {
-        providerIds: [],
-        providerRevocationFailures: [],
-      };
-      await storeAccountDeletionReceipt(context.env.DB, receiptInput, providerOutcome);
-    } else {
-      const outcome = await deleteAccountData(context.env.DB, user.id, receiptInput);
-      if (outcome.providerRevocationFailures.length > 0) {
-        console.info("Account deleted; provider disconnect remains client-managed", {
-          providers: outcome.providerRevocationFailures,
-          requestId: context.get("requestId"),
-        });
-      }
+    const outcome = await deleteAccountData(context.env.DB, user.id, receiptInput);
+    if (outcome.providerRevocationFailures.length > 0) {
+      console.info("Account deleted; provider disconnect remains client-managed", {
+        providers: outcome.providerRevocationFailures,
+        requestId: context.get("requestId"),
+      });
     }
     const receipt = await readAccountDeletionReceipt(context.env.DB, receiptInput);
     if (!receipt) throw new Error("Account deletion receipt disappeared after deletion");

@@ -1,17 +1,7 @@
 import { spawnSync } from "node:child_process";
 
-const exceptions = [
-  {
-    id: "GHSA-w3rx-r6r6-pgpr",
-    expiresOn: "2026-09-12",
-    scope: "Expo/Metro build-time image parsing; no published patched image-size release",
-  },
-  {
-    id: "GHSA-5p2g-fcmc-qvqq",
-    expiresOn: "2026-09-12",
-    scope: "Expo/Metro build-time image parsing; no published patched image-size release",
-  },
-];
+// No ignored advisories: the previously exempted Metro image parser is patched.
+const exceptions = [];
 
 const today = new Date().toISOString().slice(0, 10);
 const expired = exceptions.filter(({ expiresOn }) => today >= expiresOn);

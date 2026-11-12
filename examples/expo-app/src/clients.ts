@@ -1,4 +1,5 @@
 import {
+  createExpoAccountDeletionJournal,
   createExpoAuthClient,
   createExpoSyncClient,
   createNativeGoogleAuth,
@@ -33,6 +34,10 @@ export const authClient = createExpoAuthClient({
 export const syncClient = createExpoSyncClient({
   baseUrl: syncBaseUrl,
   authClient,
+});
+
+export const accountDeletionJournal = createExpoAccountDeletionJournal({
+  storagePrefix: "cloudflare-mobile-sync-example",
 });
 
 let lastGoogleAccountId: string | null = null;
