@@ -99,11 +99,15 @@ source commits; the canonical workspace and CI continue to use isolated installs
 The reference app's `index.ts` supports either layout.
 
 Install Android SDK CMake 3.31.6 and pass `-Pandroid.cmakeVersion=3.31.6` to the
-local Gradle build. For example, after Android prebuild, run from the generated
+local Gradle build. If Windows long paths are disabled, also pass
+`-Pexpo.android.cmakeObjectPathMax=240` so CMake shortens generated object paths
+within the legacy path limit. This uses Expo SDK 58's root Gradle property,
+without editing native package sources or Windows registry settings.
+For example, after Android prebuild, run from the generated
 `examples/expo-app/android` directory:
 
 ```powershell
-./gradlew.bat :app:assembleDebug -PreactNativeArchitectures=x86_64 -Pandroid.cmakeVersion=3.31.6 --no-daemon
+./gradlew.bat :app:assembleDebug -PreactNativeArchitectures=x86_64 -Pandroid.cmakeVersion=3.31.6 -Pexpo.android.cmakeObjectPathMax=240 --no-daemon
 ```
 
 This builds an emulator-architecture debug APK; it does not validate a signed
