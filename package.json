@@ -6,7 +6,7 @@
   "description": "Self-hosted authentication and incremental sync for mobile applications",
   "packageManager": "pnpm@11.9.0",
   "engines": {
-    "node": ">=22.13 <25"
+    "node": ">=22.13 <23 || >=24.3 <25"
   },
   "scripts": {
     "build": "pnpm build:packages && pnpm --filter @cloudflare-mobile-sync/worker build && pnpm --filter @cloudflare-mobile-sync/expo-app build",

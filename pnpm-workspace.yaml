@@ -11,17 +11,52 @@ allowBuilds:
 auditConfig:
   ignoreGhsas: []
 
+minimumReleaseAgeExclude:
+  - '@expo/cli@58.1.20'
+  - '@expo/config-plugins@58.0.13'
+  - '@expo/config@58.0.12'
+  - '@expo/env@2.6.0'
+  - '@expo/fingerprint@0.21.10'
+  - '@expo/image-utils@0.12.7'
+  - '@expo/inline-modules@0.2.10'
+  - '@expo/local-build-cache-provider@58.0.12'
+  - '@expo/metro-config@58.0.22'
+  - '@expo/metro-file-map@58.0.6'
+  - '@expo/plist@0.10.2'
+  - '@expo/prebuild-config@58.0.20'
+  - '@expo/require-utils@58.0.6'
+  - '@expo/router-server@58.0.22'
+  - babel-preset-expo@58.0.25
+  - expo-asset@58.0.21
+  - expo-constants@58.0.16
+  - expo-crypto@58.0.8
+  - expo-dev-client@58.0.19
+  - expo-dev-launcher@58.0.19
+  - expo-dev-menu-interface@58.0.2
+  - expo-dev-menu@58.0.13
+  - expo-font@58.0.12
+  - expo-keep-awake@58.0.4
+  - expo-linking@58.0.17
+  - expo-modules-autolinking@58.1.0
+  - expo-modules-cli@0.5.0
+  - expo-modules-core@58.1.0
+  - expo-modules-jsi@58.0.23
+  - expo-network@58.0.5
+  - expo-secure-store@58.0.3
+  - expo-server@58.1.0
+  - expo@58.0.24
+  - expo-web-browser@58.0.8
+
 overrides:
   "@better-fetch/fetch@1.3.1": 1.3.2
   "brace-expansion@5.0.7": 5.0.12
   "browserslist@4.28.6": 4.28.7
-  # Keep SDK 57 constants compatible with the patched example CLI's router-server peer.
-  "expo-constants@57.0.12": 57.0.23
   "fast-uri@3.1.5": 3.1.9
   "glob@13.0.6": 14.0.4
   "js-yaml@4.3.0": 4.3.2
   lodash: 4.18.1
   "minimatch@10.2.5": 11.0.1
+  "@expo/fingerprint>minimatch": 11.0.7
   "metro>image-size": 2.0.4
   "nanoid@3.3.16": 3.3.18
   "postcss@8.5.20": 8.5.23

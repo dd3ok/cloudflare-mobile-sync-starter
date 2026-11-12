@@ -37,7 +37,7 @@ deployment repository that pins this source by exact commit and migration hash.
 
 ## Local checks
 
-Requirements: Node.js 22.13–24 and pnpm 11.9.0.
+Requirements: Node.js 22.13+ (22.x) / 24.3+ (24.x) and pnpm 11.9.0.
 
 ```bash
 pnpm install

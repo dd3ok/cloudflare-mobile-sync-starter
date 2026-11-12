@@ -7,18 +7,19 @@ portal behavior.
 
 ## Active invariants
 
-Current dependency maintenance (2026-11-12): CI pins pnpm/action-setup 6.1.1
-and actions/setup-node 7.1.0 by full release SHA, retaining pnpm 11.9.0 and
-Node 24 with root @types/node 24.19.2. The root compiler is TypeScript 7.0.2; both Expo workspaces pin
-TypeScript 6.0.3, as required by SDK 57 dependency validation. CI checks
-Expo dependency compatibility before the full workspace gate. Worker development types are 5.20261110.1; runtime, compatibility
-date, bindings, and migrations are unchanged. The reference app and Expo
-client development environment use SDK 57.0.32 and React Native 0.86.3,
-with their SDK 57 companion packages aligned. AsyncStorage remains 2.2.0
-(SDK 57 recommendation); PR #10 is draft until separate native upgrade/data
-preservation verification. The Better Auth Expo adapter remains 1.6.23. Product vendor archives,
-installed apps, and deployment source pins are not updated by these PRs;
-native build, sign-in, and device restore verification remain separate gates.
+Current source baseline (2026-11-12): the reference app and Expo client use
+Expo SDK 58.0.24, React Native 0.88.1, React 19.3.0 and their recommended
+companion packages. AsyncStorage stays at 2.2.0, which SDK 58 still recommends;
+PR #10 is closed without a storage migration. The root compiler is TypeScript
+7.0.2; both Expo workspaces retain the SDK-recommended 6.0.3. CI checks Expo
+dependency compatibility before the full workspace gate. The Better Auth
+Expo adapter remains 1.6.23 and its synchronous storage contract is unchanged.
+CI actions retain full SHA pins, pnpm 11.9.0 and Node 24; root Node types are
+24.19.2 and Worker development types are 5.20261110.1. Worker runtime source,
+compatibility date, bindings and migrations are unchanged. Product vendor
+archives, installed applications and deployment source pins are not updated
+by this source change. SDK 58 product adoption and signed-device sign-in /
+restore validation remain separate gates.
 
 2026-11-11 local client security candidate: api-contract pins Zod 4.6.7;
 expo-client pins Better Auth/core 1.7.7 while retaining Expo adapter 1.6.23
@@ -83,7 +84,7 @@ real Google sign-in/device restore, or human release approval.
 ## Release gate
 
 The pinned `react-native-nitro-google-signin` 2.0.0 adapter is conditional until
-an Expo SDK 57 production-signed Android build verifies returning account, new
+an Expo SDK 58 production-signed Android build verifies returning account, new
 account picker, explicit button fallback, cancellation, nonce mismatch, expiry,
 replay rejection, session restore, logout, and account deletion. Keep the
 adapter seam so the native library can be replaced without changing Worker or

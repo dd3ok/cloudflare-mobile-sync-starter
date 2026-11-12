@@ -7,12 +7,12 @@ private deployment configuration for each host app and environment.
 
 ## Prerequisites
 
-- Node.js 22.13–24 and pnpm 11.9.0
+- Node.js 22.13+ (22.x) / 24.3+ (24.x) and pnpm 11.9.0
 - Cloudflare account with Workers, D1, rate limits, and a managed custom domain
 - Google Cloud project for the environment
 - Web OAuth client ID
 - Android OAuth client bound to the exact package and signing SHA-1
-- Expo SDK 57 development/release build capability
+- Expo SDK 58 development/release build capability
 
 ## Prepare source
 
