@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "license": "MIT",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.ts",
   "scripts": {
     "build": "expo export --platform web --output-dir dist",
     "dev": "expo start --dev-client",

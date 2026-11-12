@@ -6,5 +6,5 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true
   },
-  "include": ["App.tsx", "src/**/*.ts"]
+  "include": ["index.ts", "App.tsx", "src/**/*.ts"]
 }

@@ -19,7 +19,9 @@ CI actions retain full SHA pins, pnpm 11.9.0 and Node 24; root Node types are
 compatibility date, bindings and migrations are unchanged. Product vendor
 archives, installed applications and deployment source pins are not updated
 by this source change. SDK 58 product adoption and signed-device sign-in /
-restore validation remain separate gates.
+restore validation remain separate gates. The reference app uses an explicit
+Expo `registerRootComponent` entry point so both isolated and hoisted installs
+resolve the application without a hard-coded `node_modules` path.
 
 2026-11-11 local client security candidate: api-contract pins Zod 4.6.7;
 expo-client pins Better Auth/core 1.7.7 while retaining Expo adapter 1.6.23
