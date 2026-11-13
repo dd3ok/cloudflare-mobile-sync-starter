@@ -7,9 +7,12 @@ portal behavior.
 
 ## Active invariants
 
-Current source baseline (2026-11-12): the reference app and Expo client use
-Expo SDK 58.0.24, React Native 0.88.1, React 19.3.0 and their recommended
-companion packages. AsyncStorage stays at 2.2.0, which SDK 58 still recommends;
+Current source baseline (2026-11-13): the reference app and Expo client use
+Expo SDK 58.0.25, React Native 0.88.1, React 19.3.0 and their recommended
+companion packages. The reference app uses Expo Dev Client 58.0.20. The Worker
+pins Hono 4.13.18, which includes the earlier router fixes and the security fixes
+in the [4.13.18 release](https://github.com/honojs/hono/releases/tag/v4.13.18).
+AsyncStorage stays at 2.2.0, which SDK 58 still recommends;
 PR #10 is closed without a storage migration. The root compiler is TypeScript
 7.0.2; both Expo workspaces retain the SDK-recommended 6.0.3. CI checks Expo
 dependency compatibility before the full workspace gate. The Better Auth
