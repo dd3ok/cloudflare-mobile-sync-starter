@@ -358,13 +358,21 @@ describe("Worker API", () => {
     expect(after).toBe(before);
   });
 
-  it("reports health and requires authentication for application data", async () => {
+  it("reports health with the Cloudflare request ID", async () => {
     const health = await apiRequest("/health", { headers: { "CF-Ray": "test-ray" } });
     expect(health.status).toBe(200);
     expect(await health.json()).toEqual({ ok: true, version: "v1" });
     expect(health.headers.get("X-Request-ID")).toBe("test-ray");
+  });
 
-    const unauthorized = await apiRequest("/v1/sync/pull");
+  it.each([
+    ["GET", "/v1/sync/pull"],
+    ["POST", "/v1/sync/push"],
+    ["POST", "/v1/sync/retained-tombstone"],
+    ["GET", "/v1/account"],
+    ["DELETE", "/v1/account"],
+  ])("requires authentication for %s %s", async (method, path) => {
+    const unauthorized = await apiRequest(path, { method });
     expect(unauthorized.status).toBe(401);
     expect(await unauthorized.json()).toEqual({
       error: {
