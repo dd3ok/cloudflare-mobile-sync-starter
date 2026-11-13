@@ -7,6 +7,12 @@ portal behavior.
 
 ## Active invariants
 
+2026-11-14 local dependency follow-up: the candidate uses jose 6.2.17 and
+Nitro Modules 0.37.2, and pairs Vitest 5.1.0 with the supported Cloudflare
+Vitest plugin 1.8.1. React DOM stays at the Expo-required 19.3.0. See
+[PR review, compatibility decisions and checks](docs/DEPENDENCY_REVIEW_2026-11-14.md).
+This does not change deployed source pins, installed apps or the native-device gate.
+
 Current source baseline (2026-11-13): the reference app and Expo client use
 Expo SDK 58.0.25, React Native 0.88.1, React 19.3.0 and their recommended
 companion packages. The reference app uses Expo Dev Client 58.0.20. The Worker
