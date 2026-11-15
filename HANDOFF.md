@@ -101,9 +101,9 @@ replay rejection, session restore, logout, and account deletion. Keep the
 adapter seam so the native library can be replaced without changing Worker or
 portable client contracts.
 
-Run `pnpm check` and `git diff --check` for every change. Report all physical
-device, signing, provider-console, DNS, D1, and deployment steps as unverified
-until direct evidence exists.
+Run `pnpm check` and `git diff --check` for release candidates. Mark required
+physical-device, signing, provider-console, DNS, D1, and deployment checks as
+verified only with direct evidence.
 
 Portal release evidence additionally includes the exact custom origin,
 workers.dev/preview closure, Google JavaScript origin, Turnstile hostname,

@@ -1,5 +1,8 @@
 # Repository instructions
 
+For development, debugging, tests, CI, and instruction changes in the Ponntail Studio workspace,
+follow the [shared development workflow](../docs/workflows/development.md). In a standalone
+checkout, follow this file and select the relevant [local checks](README.md#local-checks).
 Read `HANDOFF.md` and `docs/ARCHITECTURE.md` before changing the repository.
 
 ## Documentation requirements
@@ -25,7 +28,9 @@ Read `HANDOFF.md` and `docs/ARCHITECTURE.md` before changing the repository.
 
 - Run production deployment and OAuth operations from `../platform-deployments` only after explicit owner authorization.
 - Never commit `.dev.vars`, `.env`, tokens, provider secrets, database exports, or real user data.
-- Keep dependency versions pinned through the lockfile and run the proportional test, type-check, lint, and security checks before each handoff.
+- Keep dependency versions pinned through the lockfile. Run `git diff --check` and the tests,
+  type checks, lint, and security checks that apply to the change. Follow the [release gate](HANDOFF.md#release-gate)
+  for release candidates.
 - Use migrations for every D1 schema change and test migrations against a disposable local database.
 - Add negative authorization tests, not only happy-path tests.
 - Keep documentation synchronized with implementation and record consequential design choices as ADRs.
