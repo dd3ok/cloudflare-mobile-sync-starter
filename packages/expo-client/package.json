@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@better-auth/core": "1.7.7",
-    "@better-auth/expo": "1.6.23",
+    "@better-auth/expo": "1.7.25",
     "@cloudflare-mobile-sync/api-contract": "workspace:*",
     "@cloudflare-mobile-sync/client-core": "workspace:*",
     "better-auth": "1.7.7",
