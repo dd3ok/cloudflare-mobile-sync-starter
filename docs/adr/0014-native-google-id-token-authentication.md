@@ -56,6 +56,12 @@ with a forward-only migration after every existing D1 instance is inventoried.
 ADR 0008 and ADR 0009 remain only as decision and migration history. They are
 not active implementation guidance.
 
+In Better Auth 1.7.26 the verified ID token also reaches the account creation
+hook. The Worker clears provider credentials before account creates and updates
+to enforce the token policy in decision 6. Migration 0009 clears Google ID
+tokens retained by earlier versions. See the
+[upgrade procedure](../OPERATIONS.md#google-id-token-cleanup).
+
 ## Consequences
 
 - Android no longer needs a Google redirect URI, Worker callback URL, custom

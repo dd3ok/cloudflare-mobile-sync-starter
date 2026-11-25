@@ -1,6 +1,6 @@
 # Architecture
 
-Reviewed: 2026-08-26
+Reviewed: 2026-11-19
 
 ## System boundary
 
@@ -14,7 +14,7 @@ Host Android app
              v
 Cloudflare Worker
   strict native-auth guard
-  Better Auth 1.7.7
+  Better Auth 1.7.26
   user-scoped sync repository
              |
              v

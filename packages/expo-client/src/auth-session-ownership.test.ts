@@ -298,6 +298,42 @@ describe("Expo session ownership", () => {
     expect(SecureStore.getItem(cookieKey)).toBe("\u0001cms-chunks:0:2");
   });
 
+  it.each([
+    ["\u0001ba-chunks:2", cookieKey],
+    ["\u0001cms-chunks:0:2", `${cookieKey}.0`],
+  ])("restores and rotates a pre-upgrade chunked cookie (%j)", async (marker, chunkKey) => {
+    const previous = "a".repeat(2_000);
+    const replacement = "b".repeat(2_000);
+    const serialized = storedCookie(previous);
+    SecureStore.setItem(`${chunkKey}.0`, serialized.slice(0, 1_800));
+    SecureStore.setItem(`${chunkKey}.1`, serialized.slice(1_800));
+    SecureStore.setItem(cookieKey, marker);
+
+    let requestedCookie: string | null = null;
+    const options = {
+      baseUrl: "https://sync.example.test",
+      scheme: "com.example.nativeapp.dev",
+      storagePrefix,
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        requestedCookie = new Request(input, init).headers.get("cookie");
+        return Response.json(null, {
+          headers: { "set-cookie": `better-auth.session_token=${replacement}; Path=/; HttpOnly` },
+        });
+      },
+    };
+    const client = createExpoAuthClient(options);
+    const ownership = client.captureSessionOwnership();
+    expect(ownership?.isCurrent()).toBe(true);
+    expect((await client.getSession()).error).toBeNull();
+    expect(requestedCookie).toBe(`better-auth.session_token=${previous}`);
+    expect(ownership?.clear()).toBe(false);
+
+    const restarted = createExpoAuthClient(options);
+    expect(restarted.getCookie()).toBe(`better-auth.session_token=${replacement}`);
+    expect(restarted.captureSessionOwnership()?.clear()).toBe(true);
+    expect(client.getCookie()).toBe("");
+  });
+
   it("preserves the previous cookie when a staged chunk write fails", () => {
     SecureStore.setItem(cookieKey, storedCookie("account-a"));
     const authClient = createExpoAuthClient({

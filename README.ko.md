@@ -10,7 +10,7 @@ Cloudflare Worker와 D1 데이터베이스를 독립적으로 배포합니다. �
 
 - Android Credential Manager가 Google ID 토큰을 발급받습니다.
 - Worker가 5분짜리 일회용 nonce를 발급하고 D1에서 원자적으로 소비합니다.
-- Better Auth 1.6.23이 Google 토큰을 검증하고 D1 세션을 만듭니다.
+- Better Auth 1.7.26이 Google 토큰을 검증하고 D1 세션을 만듭니다.
 - 앱은 Better Auth 세션 쿠키만 Expo SecureStore에 보관합니다.
 - Google access/refresh/ID token은 D1에 저장하지 않습니다.
 - 브라우저 OAuth, Worker callback, private-scheme handoff, Google client

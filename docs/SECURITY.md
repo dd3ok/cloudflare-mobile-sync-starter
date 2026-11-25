@@ -37,9 +37,10 @@ Reviewed: 2026-08-26
 
 The client submits only the Google ID token and nonce required for authentication.
 The Worker rejects access tokens, refresh tokens, expiry metadata, and
-caller-supplied profiles. Better Auth uses the ID token transiently to verify the
-identity and create a service session; the ID token is not persisted in the
-account row.
+caller-supplied profiles. Better Auth passes the verified ID token to account
+creation. The Worker's account create and update hooks set all three provider
+token columns to NULL before the D1 write. See the
+[upgrade procedure](./OPERATIONS.md#google-id-token-cleanup) for earlier rows.
 
 The Better Auth session cookie is still a bearer secret. It is stored in Expo
 SecureStore, sent only over HTTPS, never logged, and revoked on sign-out or

@@ -7,13 +7,20 @@ portal behavior.
 
 ## Active invariants
 
+The 2026-11-19 source pins the Worker auth library, auth CLI, Better Auth core
+and Expo adapter to 1.7.26. Expo SDK 58.0.26 uses Dev Client 58.0.21 and WebBrowser
+58.1.0. Host cookie reads and prepared-session commits remain synchronous.
+The account write hooks discard provider tokens. Follow the
+[Google ID token cleanup procedure](docs/OPERATIONS.md#google-id-token-cleanup)
+when adopting this revision.
+
 2026-11-14 local dependency follow-up: the candidate uses jose 6.2.17 and
 Nitro Modules 0.37.2, and pairs Vitest 5.1.0 with the supported Cloudflare
 Vitest plugin 1.8.1. React DOM stays at the Expo-required 19.3.0. See
 [PR review, compatibility decisions and checks](docs/DEPENDENCY_REVIEW_2026-11-14.md).
 This does not change deployed source pins, installed apps or the native-device gate.
 
-Current source baseline (2026-11-13): the reference app and Expo client use
+Source baseline on 2026-11-13: the reference app and Expo client used
 Expo SDK 58.0.25, React Native 0.88.1, React 19.3.0 and their recommended
 companion packages. The reference app uses Expo Dev Client 58.0.20. The Worker
 pins Hono 4.13.18, which includes the earlier router fixes and the security fixes

@@ -110,6 +110,12 @@ export function createAuth(env: Env) {
         enabled: false,
       },
     },
+    databaseHooks: {
+      account: {
+        create: { before: discardProviderTokens },
+        update: { before: discardProviderTokens },
+      },
+    },
     session: {
       cookieCache: { enabled: false },
       expiresIn: 60 * 60 * 24 * 7,
@@ -141,3 +147,9 @@ export function createAuth(env: Env) {
 }
 
 export type Auth = ReturnType<typeof createAuth>;
+
+// Direct ID-token sign-in passes the verified token to account creation.
+// Keep provider credentials out of D1 even on the first sign-in.
+async function discardProviderTokens() {
+  return { data: { accessToken: null, refreshToken: null, idToken: null } };
+}

@@ -1,6 +1,6 @@
 # Compatibility research index
 
-Reviewed: 2026-11-12
+Reviewed: 2026-11-19
 
 ## Current pinned baseline
 
@@ -8,8 +8,8 @@ Reviewed: 2026-11-12
 | --- | --- | --- |
 | Mobile | Expo SDK 58 / React Native 0.88 | supported; native build required |
 | Native Google | `react-native-nitro-google-signin` 2.0.0 | conditional pending signed-device gate |
-| Nitro runtime | `react-native-nitro-modules` 0.36.5 | exact reference-app pin |
-| Authentication | Better Auth/core 1.7.7; `@better-auth/expo` 1.6.23 | local compatibility checked; synchronous Expo adapter retained |
+| Nitro runtime | `react-native-nitro-modules` 0.37.2 | exact reference-app pin |
+| Authentication | Better Auth, core and `@better-auth/expo` 1.7.26 | synchronous host session ownership and pre-upgrade cookie formats retained |
 | Worker | Hono + Cloudflare Workers | active |
 | Database | Better Auth direct D1 + platform migrations | active |
 | Other providers/platforms | iOS, Kakao, Naver | not implemented |
