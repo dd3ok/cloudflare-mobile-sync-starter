@@ -70,6 +70,13 @@ host application.
 
 ## Consequences
 
+As of 2026-11-19, Better Auth Expo 1.7.26 uses asynchronous storage hooks.
+The adapter fences each chunk and marker write with the session epoch. It maps
+the plugin's active chunk slot to the existing SecureStore marker and omits its
+fallback slot because that slot can contain a previous user's credentials.
+Host cookie reads, ownership checks, and prepared commits still use the
+synchronous SecureStore snapshot.
+
 No Worker route, D1 schema, deployment binding, secret, OAuth client, or domain
 changes are required. The direct sign-in and revoke endpoints are unchanged.
 Native hosts must explicitly commit a successful prepared sign-in and abort any

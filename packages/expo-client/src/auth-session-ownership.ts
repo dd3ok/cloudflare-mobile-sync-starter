@@ -122,13 +122,11 @@ export function ownedExpoClient(options: OwnedExpoClientOptions) {
   const readCookie = () => getCookie(readStoredCookie()).trim();
   let sessionEpoch = 0;
   const normalizedCookieName = normalizeCookieName(cookieName);
-  const cookieChunkPrefix = `${normalizedCookieName}.`;
   let activeApplication: {
     expectedEpoch: number;
     storageError: unknown;
     storageFailed: boolean;
   } | null = null;
-  let pendingCookieChunks: { chunks: string[]; expectedEpoch: number } | null = null;
 
   const staleApplicationError = () =>
     new Error("The shared session changed before the response was applied");
@@ -142,9 +140,9 @@ export function ownedExpoClient(options: OwnedExpoClientOptions) {
     sessionEpoch += 1;
     if (activeApplication) activeApplication.expectedEpoch = sessionEpoch;
   };
-  const persist = (write: () => void) => {
+  const trackStorageErrors = <T>(operation: () => T): T => {
     try {
-      write();
+      return operation();
     } catch (error) {
       if (activeApplication) {
         activeApplication.storageError = error;
@@ -154,69 +152,48 @@ export function ownedExpoClient(options: OwnedExpoClientOptions) {
     }
   };
 
+  // Expose only the active slot to Better Auth. A previous slot may belong to
+  // a signed-out account and must never be used as a recovery credential.
+  const getPluginItem = (name: string): string | null =>
+    trackStorageErrors(() => {
+      const value = options.storage.getItem(name);
+      if (name !== normalizedCookieName || value === null) return value;
+      const staged = parseStagedMarker(value);
+      return staged ? `${CHUNK_MARKER}${staged.count}:${staged.generation}` : value;
+    });
+  const setPluginItem = (name: string, value: string): void =>
+    trackStorageErrors(() => {
+      assertApplicationCurrent();
+      const isCookie = name === normalizedCookieName;
+      const before = isCookie ? readCookie() : null;
+      let stored = value;
+      if (isCookie && value.startsWith(CHUNK_MARKER)) {
+        // Expo 1.7 writes count:slot[:fallbackCount] after staging its chunks.
+        // Keep the existing disk format so installed clients can read the cookie.
+        const [count, slot] = value.slice(CHUNK_MARKER.length).split(":");
+        if ((slot !== "0" && slot !== "1") || !count || !/^[1-9]\d*$/u.test(count)) {
+          throw new Error("Better Auth produced an invalid session cookie marker");
+        }
+        stored = `${STAGED_CHUNK_MARKER}${slot}:${count}`;
+      }
+      options.storage.setItem(name, stored);
+      if (options.storage.getItem(name) !== stored) {
+        throw new Error(`Secure storage did not persist ${name}`);
+      }
+      if (before !== null) recordCookieChange(before);
+    });
+
   const plugin = expoClient({
     ...options,
-    // A persistent session cache creates a second account-bearing commit point.
-    // The cookie remains the single source of truth for account ownership.
     disableCache: true,
     storage: {
-      getItem(name) {
-        if (normalizeCookieName(name) === normalizedCookieName) return readStoredCookie();
-        return options.storage.getItem(name);
+      getItem: getPluginItem,
+      setItem: setPluginItem,
+      async getItemAsync(name) {
+        return getPluginItem(name);
       },
-      setItem(name, value) {
-        const normalizedName = normalizeCookieName(name);
-        if (normalizedName === normalizedCookieName && value === "") {
-          assertApplicationCurrent();
-          pendingCookieChunks = { chunks: [], expectedEpoch: sessionEpoch };
-          return;
-        }
-        if (pendingCookieChunks && normalizedName.startsWith(cookieChunkPrefix)) {
-          assertApplicationCurrent();
-          if (pendingCookieChunks.expectedEpoch !== sessionEpoch) {
-            pendingCookieChunks = null;
-            throw staleApplicationError();
-          }
-          const index = Number(normalizedName.slice(cookieChunkPrefix.length));
-          if (Number.isInteger(index) && index >= 0) {
-            pendingCookieChunks.chunks[index] = value;
-            return;
-          }
-        }
-        if (
-          pendingCookieChunks &&
-          normalizedName === normalizedCookieName &&
-          value.startsWith(CHUNK_MARKER)
-        ) {
-          const count = Number(value.slice(CHUNK_MARKER.length));
-          if (
-            !Number.isInteger(count) ||
-            count < 1 ||
-            pendingCookieChunks.expectedEpoch !== sessionEpoch ||
-            pendingCookieChunks.chunks.length < count ||
-            Array.from({ length: count }, (_, index) => pendingCookieChunks?.chunks[index]).some(
-              (chunk) => typeof chunk !== "string",
-            )
-          ) {
-            throw new Error("Better Auth produced an incomplete session cookie");
-          }
-          const before = readCookie();
-          const preparedCookie = pendingCookieChunks.chunks.slice(0, count).join("");
-          persist(() => storage.setItem(cookieName, preparedCookie));
-          pendingCookieChunks = null;
-          recordCookieChange(before);
-          return;
-        }
-        if (normalizedName === normalizedCookieName) pendingCookieChunks = null;
-        const canChangeCookie =
-          normalizedName === normalizedCookieName ||
-          normalizedName.startsWith(`${normalizedCookieName}.`);
-        const before = canChangeCookie ? readCookie() : null;
-        if (normalizedName === normalizedCookieName) {
-          assertApplicationCurrent();
-          persist(() => storage.setItem(cookieName, value));
-        } else persist(() => options.storage.setItem(name, value));
-        if (before !== null) recordCookieChange(before);
+      async setItemAsync(name, value) {
+        setPluginItem(name, value);
       },
     },
   });
@@ -239,7 +216,6 @@ export function ownedExpoClient(options: OwnedExpoClientOptions) {
         return value;
       } finally {
         activeApplication = null;
-        pendingCookieChunks = null;
       }
     });
     applicationTail = result.then(
@@ -331,8 +307,7 @@ export function ownedExpoClient(options: OwnedExpoClientOptions) {
         expectedCookie: string,
         expectedEpoch: number,
       ): ExpoSessionOwnership => {
-        const isCurrent = () =>
-          sessionEpoch === expectedEpoch && actions.getCookie().trim() === expectedCookie;
+        const isCurrent = () => sessionEpoch === expectedEpoch && readCookie() === expectedCookie;
         const ownership: ExpoSessionOwnership = {
           isCurrent,
           clear() {
@@ -350,12 +325,13 @@ export function ownedExpoClient(options: OwnedExpoClientOptions) {
 
       return {
         ...actions,
+        getCookie: readCookie,
         captureSessionOwnership(): ExpoSessionOwnership | null {
-          const cookie = actions.getCookie().trim();
+          const cookie = readCookie();
           return cookie.length === 0 ? null : createOwnership(cookie, sessionEpoch);
         },
         prepareSessionCommit() {
-          const expectedCookie = actions.getCookie().trim();
+          const expectedCookie = readCookie();
           const expectedEpoch = sessionEpoch;
           const baselineStoredCookie = readStoredCookie();
           const ownership = createOwnership(expectedCookie, expectedEpoch);
