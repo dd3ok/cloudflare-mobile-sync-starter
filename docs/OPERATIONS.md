@@ -34,6 +34,23 @@ Worker rollback does not roll back D1. Before reverting code, confirm that the
 older Worker understands every already-applied migration. Never edit, delete, or
 reuse an applied migration number.
 
+### Google ID token cleanup
+
+Earlier native sign-ins could leave an ID token in a Google account row.
+APP_DB migration `0009_clear_google_id_tokens.sql` clears that column for
+Google accounts. It preserves service sessions, provider identities and sync data.
+For an existing database already at migration 0008, deploy the patched Worker
+before running this data-only cleanup. If applying migrations first, pause native
+sign-ins until the patched Worker is serving traffic. Verify the remaining count
+is zero.
+
+```sql
+SELECT COUNT(*) FROM account WHERE providerId = 'google' AND idToken IS NOT NULL;
+```
+
+A restore to a point before cleanup, or a rollback to a Worker that can store
+ID tokens, requires the same check and cleanup before returning to service.
+
 ## Key rotation
 
 `BETTER_AUTH_SECRET` is the active key and `BETTER_AUTH_SECRETS` is the versioned

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
-import { describe, expect, it } from "vitest";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
+import { describe, expect, it, vi } from "vitest";
 import { createApp } from "../src/app";
 
 const APPLICATION_ID = env.NATIVE_APPLICATION_ID;
@@ -36,15 +37,78 @@ async function createAttempt() {
   };
 }
 
-function signInBody(attempt: { attemptId: string; nonce: string }) {
+function signInBody(
+  attempt: { attemptId: string; nonce: string },
+  token = "signed-google-id-token",
+) {
   return {
     provider: "google",
-    idToken: { token: "signed-google-id-token", nonce: attempt.nonce },
+    idToken: { token, nonce: attempt.nonce },
     additionalData: { nativeAttemptId: attempt.attemptId },
   };
 }
 
 describe("native Google authentication guard", () => {
+  it("creates a session without persisting the verified Google credential", async () => {
+    const attempt = await createAttempt();
+    const { privateKey, publicKey } = await generateKeyPair("RS256");
+    const kid = "local-google-test";
+    const jwk = { ...(await exportJWK(publicKey)), kid, alg: "RS256" };
+    const subject = "credential-storage-test";
+    const token = await new SignJWT({
+      email: "credential-storage@example.test",
+      email_verified: true,
+      name: "Test User",
+      nonce: attempt.nonce,
+    })
+      .setProtectedHeader({ alg: "RS256", kid })
+      .setSubject(subject)
+      .setIssuer("https://accounts.google.com")
+      .setAudience(attempt.webClientId)
+      .setIssuedAt()
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    const keys = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      expect(new Request(input).url).toBe("https://www.googleapis.com/oauth2/v3/certs");
+      return Response.json({ keys: [jwk] });
+    });
+    const signIn = (issued: typeof attempt) =>
+      createApp().request(
+        `${env.BETTER_AUTH_URL}/v1/auth/sign-in/social`,
+        {
+          method: "POST",
+          headers: {
+            "cf-connecting-ip": "203.0.113.37",
+            "content-type": "application/json",
+            origin: env.TRUSTED_ORIGINS,
+          },
+          body: JSON.stringify(signInBody(issued, token)),
+        },
+        {
+          ...env,
+          BETTER_AUTH_SECRET: "0123456789abcdefghijklmnopqrstuvwxyz",
+          BETTER_AUTH_SECRETS: "",
+        },
+      );
+    try {
+      const mismatched = await signIn(await createAttempt());
+      expect(mismatched.status).toBe(401);
+      expect(mismatched.headers.has("set-cookie")).toBe(false);
+      const response = await signIn(attempt);
+      expect(response.status).toBe(200);
+      expect(response.headers.has("set-cookie")).toBe(true);
+      const account = await env.DB.prepare(
+        `SELECT accessToken IS NULL AS noAccess, refreshToken IS NULL AS noRefresh,
+                idToken IS NULL AS noId FROM account WHERE providerId = 'google' AND accountId = ?`,
+      )
+        .bind(subject)
+        .first();
+      expect(account).toEqual({ noAccess: 1, noRefresh: 1, noId: 1 });
+    } finally {
+      keys.mockRestore();
+    }
+  });
+
   it("rate-limits public attempt issuance by the Cloudflare-provided client IP", async () => {
     const keys: string[] = [];
     const rateLimitedEnv = {
